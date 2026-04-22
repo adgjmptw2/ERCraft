@@ -1,5 +1,9 @@
 import { PrismaClient } from '@prisma/client'
 import Fastify from 'fastify'
+import {
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod'
 
 import { attachErrorHandlers } from './plugins/errorHandler.js'
 import favoritesRoutes from './routes/favorites.js'
@@ -12,6 +16,9 @@ export interface CreateAppOptions {
 export async function createApp(options: CreateAppOptions = {}) {
   const prisma = options.prisma ?? new PrismaClient()
   const app = Fastify({ logger: false })
+
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
 
   app.decorate('prisma', prisma)
 

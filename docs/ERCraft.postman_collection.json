@@ -1,0 +1,97 @@
+{
+  "info": {
+    "name": "ERCraft",
+    "description": "ERCraft 백엔드 — 즐겨찾기 / 검색 기록 엔드포인트. base_url 변수로 로컬/스테이징 전환.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Favorites",
+      "item": [
+        {
+          "name": "POST /api/favorites",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "user-test" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"playerUserNum\": 123456,\n  \"nicknameSnapshot\": \"AyaMain\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/favorites",
+              "host": ["{{base_url}}"],
+              "path": ["api", "favorites"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/favorites",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "user-test" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/favorites",
+              "host": ["{{base_url}}"],
+              "path": ["api", "favorites"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search History",
+      "item": [
+        {
+          "name": "POST /api/search-history",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "user-test" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"aya\",\n  \"matchedUserNum\": 123456\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/search-history",
+              "host": ["{{base_url}}"],
+              "path": ["api", "search-history"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/search-history?limit=10",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "user-test" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/search-history?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "search-history"],
+              "query": [
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

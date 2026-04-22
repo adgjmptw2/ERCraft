@@ -1,5 +1,9 @@
 import { Prisma } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
+import {
+  hasZodFastifySchemaValidationErrors,
+  isResponseSerializationError,
+} from 'fastify-type-provider-zod'
 
 import { HttpError } from '../utils/httpError.js'
 
@@ -18,6 +22,17 @@ export function attachErrorHandlers(app: FastifyInstance): void {
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof HttpError) {
       return reply.status(error.statusCode).send(errorBody(error.code, error.message, error.details))
+    }
+
+    if (hasZodFastifySchemaValidationErrors(error)) {
+      return reply
+        .status(400)
+        .send(errorBody('INVALID_REQUEST', 'Invalid request payload', error.validation))
+    }
+
+    if (isResponseSerializationError(error)) {
+      console.error('[zod serialize]', error.cause?.issues)
+      return reply.status(500).send(errorBody('INTERNAL_ERROR', 'Something went wrong'))
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {

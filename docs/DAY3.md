@@ -70,7 +70,7 @@ API에서만 쓰는 건 예를 들면:
 - 즐겨찾기 응답: playerUserNum, nickname, addedAt
 - 검색 기록 한 줄: query, matchedPlayer(optional), createdAt
 
-에러는 `{ error: { code, message, details? } }` 형태로 통일해 두기로 함.
+에러는 `{ error: { code, message, details? } }` 형태로 통일.
 
 ---
 

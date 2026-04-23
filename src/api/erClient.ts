@@ -25,10 +25,6 @@ export function isRealMode(): boolean {
   return hasApiKey()
 }
 
-let cached: EternalReturnClient | null = null
-
 export function getClient(): EternalReturnClient {
-  if (cached) return cached
-  cached = hasApiKey() ? new RealEternalReturnClient() : new MockEternalReturnClient()
-  return cached
+  return hasApiKey() ? new RealEternalReturnClient() : new MockEternalReturnClient()
 }

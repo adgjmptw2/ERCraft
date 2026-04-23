@@ -12,6 +12,7 @@
 - **5일차:** `ApiError`, DTO 변환, mock·API DTO 엔드포인트 ([docs/DAY5.md](./docs/DAY5.md))
 - **6일차:** `backend/` Fastify·Prisma·MySQL, `X-User-Id` stub, 즐겨찾기·검색 기록 API ([docs/DAY6.md](./docs/DAY6.md))
 - **7일차:** `EternalReturnClient` 인터페이스로 프론트 API 분리, 백엔드 body 파싱 zod 교체 ([docs/DAY7.md](./docs/DAY7.md))
+- **8일차:** `getClient()` 캐시 제거, DTO 전용 hook, `getErrorMessage`, 프로필·홈 에러 처리 정리 ([docs/DAY8.md](./docs/DAY8.md))
 
 ---
 
@@ -189,7 +190,7 @@ npm run dev                   # http://localhost:3001
 npm run test
 ```
 
-수동으로 백엔드 쳐 볼 거면 `docs/ERCraft.postman_collection.json` 임포트해서 쓰면 됨.
+수동으로 백엔드 쳐 볼 거면 `docs/ERCraft.postman_collection.json` 임포트해서 사용
 
 ---
 

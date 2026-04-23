@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 
 import { searchPlayers } from '@/api/player'
 import { useDebounce } from '@/hooks/useDebounce'
+import { getErrorMessage } from '@/utils/errorMessage'
 
 export function HomePage() {
   const [input, setInput] = useState('')
@@ -40,7 +41,7 @@ export function HomePage() {
 
       {canSearch && isError ? (
         <p className="text-destructive text-sm" role="alert">
-          {error instanceof Error ? error.message : 'Search failed'}
+          {getErrorMessage(error, '검색에 실패했습니다')}
         </p>
       ) : null}
 

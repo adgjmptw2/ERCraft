@@ -22,20 +22,22 @@ export function StatCard({ label, value, description, highlight = false, classNa
   return (
     <SurfaceCard
       padding="md"
-      variant={highlight ? 'muted' : 'default'}
-      className={cn(highlight && 'ring-primary/10 ring-1', className)}
+      variant={highlight ? 'elevated' : 'default'}
+      className={cn(highlight && 'ring-primary/15 ring-1', className)}
     >
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
+      <p className="text-muted-foreground text-[0.65rem] font-medium tracking-wide uppercase">
+        {label}
+      </p>
       <p
         className={cn(
-          'mt-1 break-words font-semibold',
-          highlight ? 'text-xl sm:text-2xl' : 'text-lg',
+          'mt-1.5 break-words font-semibold tracking-tight',
+          highlight ? 'text-2xl sm:text-3xl' : 'text-xl',
         )}
       >
         {display}
       </p>
       {description ? (
-        <p className="text-muted-foreground mt-1.5 text-xs break-words">{description}</p>
+        <p className="text-muted-foreground mt-2 text-xs break-words">{description}</p>
       ) : null}
     </SurfaceCard>
   )

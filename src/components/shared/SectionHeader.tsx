@@ -8,24 +8,33 @@ export interface SectionHeaderProps {
   description?: string
   badge?: ReactNode
   className?: string
+  size?: 'default' | 'lg'
 }
 
-export function SectionHeader({ id, title, description, badge, className }: SectionHeaderProps) {
+export function SectionHeader({
+  id,
+  title,
+  description,
+  badge,
+  className,
+  size = 'default',
+}: SectionHeaderProps) {
   return (
     <div className={cn('space-y-1.5', className)}>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2.5">
         <h2
           id={id}
-          className="text-foreground text-base font-semibold tracking-tight sm:text-lg"
+          className={cn(
+            'text-foreground font-semibold tracking-tight',
+            size === 'lg' ? 'text-lg sm:text-xl' : 'text-base sm:text-lg',
+          )}
         >
           {title}
         </h2>
         {badge}
       </div>
       {description ? (
-        <p className="text-muted-foreground max-w-prose text-xs leading-relaxed sm:text-sm">
-          {description}
-        </p>
+        <p className="text-muted-foreground max-w-3xl text-sm leading-relaxed">{description}</p>
       ) : null}
     </div>
   )

@@ -5,14 +5,18 @@ import { cn } from '@/lib/utils'
 export interface SurfaceCardProps {
   children: ReactNode
   className?: string
-  variant?: 'default' | 'muted' | 'inset'
+  variant?: 'default' | 'muted' | 'inset' | 'elevated' | 'accent'
   padding?: 'none' | 'sm' | 'md' | 'lg'
+  interactive?: boolean
 }
 
 const variantClass: Record<NonNullable<SurfaceCardProps['variant']>, string> = {
   default: 'border-border bg-card shadow-sm',
-  muted: 'border-border/80 bg-muted/25 shadow-sm',
-  inset: 'border-border/70 bg-background/60 shadow-none',
+  muted: 'border-border/80 bg-muted/30 shadow-sm',
+  inset: 'border-border/60 bg-background/50 shadow-none',
+  elevated: 'border-border/70 bg-card shadow-md',
+  accent:
+    'border-primary/15 bg-gradient-to-br from-card via-card to-muted/40 shadow-sm dark:to-muted/20',
 }
 
 const paddingClass: Record<NonNullable<SurfaceCardProps['padding']>, string> = {
@@ -27,13 +31,15 @@ export function SurfaceCard({
   className,
   variant = 'default',
   padding = 'md',
+  interactive = false,
 }: SurfaceCardProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border transition-colors',
+        'rounded-xl border transition-[box-shadow,border-color,background-color]',
         variantClass[variant],
         paddingClass[padding],
+        interactive && 'hover:border-border hover:shadow-md',
         className,
       )}
     >

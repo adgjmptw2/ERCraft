@@ -38,79 +38,84 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SurfaceCard variant="muted" padding="lg" className="relative overflow-hidden">
-        <div className="from-primary/8 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent to-transparent" />
-        <div className="relative space-y-3">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+      <div className="grid gap-6 lg:grid-cols-5 lg:items-stretch">
+        <SurfaceCard
+          variant="accent"
+          padding="lg"
+          className="relative overflow-hidden lg:col-span-2"
+        >
+          <div className="from-primary/8 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent to-transparent" />
+          <div className="relative flex h-full flex-col justify-center space-y-3">
+            <p className="text-primary text-xs font-semibold tracking-wide uppercase">플레이 리포트</p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-[1.75rem] lg:leading-tight xl:text-3xl">
               이터널 리턴 전적을 검색하고, 최근 플레이 흐름을 분석해보세요
             </h1>
-            <p className="text-muted-foreground max-w-prose text-sm leading-relaxed">
+            <p className="text-muted-foreground text-sm leading-relaxed">
               최근 매치 기반으로 강점과 개선 포인트를 보여주는 플레이 리포트 · 데모 데이터로
               미리 체험
             </p>
+            <DemoDataNotice compact />
           </div>
-          <DemoDataNotice compact />
-        </div>
-      </SurfaceCard>
+        </SurfaceCard>
 
-      <SurfaceCard padding="lg" className="space-y-4">
-        <SectionHeader
-          title="플레이어 검색"
-          description="닉네임으로 프로필과 플레이 리포트를 확인합니다."
-        />
-        <label htmlFor="player-search" className="flex flex-col gap-2 text-sm font-medium">
-          닉네임
-          <Input
-            id="player-search"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="2자 이상 입력"
-            autoComplete="off"
-            className="bg-background/80"
-            aria-describedby={tooShort ? 'search-hint' : undefined}
+        <SurfaceCard padding="lg" variant="elevated" className="space-y-4 lg:col-span-3">
+          <SectionHeader
+            title="플레이어 검색"
+            description="닉네임으로 프로필과 플레이 리포트를 확인합니다."
           />
-        </label>
+          <label htmlFor="player-search" className="flex flex-col gap-2 text-sm font-medium">
+            닉네임
+            <Input
+              id="player-search"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="2자 이상 입력 · 예: 마인"
+              autoComplete="off"
+              className="bg-background/80 h-10"
+              aria-describedby={tooShort ? 'search-hint' : undefined}
+            />
+          </label>
 
-        {tooShort ? (
-          <p id="search-hint" className="text-muted-foreground text-xs">
-            2자 이상 입력해주세요.
-          </p>
-        ) : null}
+          {tooShort ? (
+            <p id="search-hint" className="text-muted-foreground text-xs">
+              2자 이상 입력해주세요.
+            </p>
+          ) : null}
 
-        <div className="space-y-2">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            샘플 플레이어
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {sampleNicknames.map((nickname) => (
-              <Button
-                key={nickname}
-                type="button"
-                variant="outline"
-                size="sm"
-                className="max-w-full truncate"
-                onClick={() => setInput(nickname)}
-              >
-                {nickname}
-              </Button>
-            ))}
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              샘플 플레이어
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {sampleNicknames.map((nickname) => (
+                <Button
+                  key={nickname}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="max-w-full truncate"
+                  onClick={() => setInput(nickname)}
+                >
+                  {nickname}
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
-      </SurfaceCard>
+        </SurfaceCard>
+      </div>
 
       <section aria-live="polite" className="min-h-[6rem] space-y-3">
         {!hasInput && !canSearch ? (
           <EmptyState
             title="닉네임을 입력하거나 샘플 플레이어를 선택해보세요"
-            description="데모 데이터에 포함된 플레이어만 검색됩니다."
+            description="데모 데이터에 포함된 플레이어만 검색됩니다. 마인 프로필에서 캐릭터 분석을 미리 확인해보세요."
           />
         ) : null}
 
         {canSearch && isFetching ? (
           <div className="space-y-3">
             <p className="text-muted-foreground text-xs">검색 중…</p>
-            <div className="flex flex-col gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
               <SkeletonCard />
               <SkeletonCard />
             </div>
@@ -132,8 +137,8 @@ export function HomePage() {
         ) : null}
 
         {canSearch && !isFetching && !isError && players.length > 0 ? (
-          <SurfaceCard padding="none" className="overflow-hidden">
-            <div className="border-border border-b px-4 py-3">
+          <SurfaceCard padding="none" variant="elevated" className="overflow-hidden">
+            <div className="border-border border-b px-4 py-3 sm:px-5">
               <SectionHeader
                 title={`검색 결과 ${players.length}명`}
                 badge={data?.source ? <SourceBadge source={data.source} /> : undefined}
@@ -148,9 +153,9 @@ export function HomePage() {
         ) : null}
       </section>
 
-      <footer className="border-border border-t pt-2">
+      <footer className="border-border border-t pt-3">
         <Link
-          className="text-primary inline-flex min-h-9 items-center text-sm font-medium underline-offset-4 hover:underline"
+          className="text-primary inline-flex min-h-9 items-center text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           to="/ranking"
         >
           데모 랭킹에서 다른 플레이어 탐색 →

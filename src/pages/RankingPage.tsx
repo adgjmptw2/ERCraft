@@ -21,10 +21,10 @@ export function RankingPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SurfaceCard variant="muted" padding="lg" className="space-y-3">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">데모 랭킹</h1>
-          <p className="text-muted-foreground text-sm leading-relaxed">
+      <SurfaceCard variant="accent" padding="lg" className="space-y-3">
+        <div className="max-w-3xl space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">데모 랭킹</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
             샘플 데이터로 랭킹 화면을 미리 확인하고, 프로필로 이동해 플레이 리포트를 탐색해보세요.
           </p>
         </div>
@@ -34,17 +34,19 @@ export function RankingPage() {
       {entries.length === 0 ? (
         <EmptyState title="표시할 랭킹 데이터가 없습니다" />
       ) : (
-        <ol className="flex flex-col gap-3">
+        <ol className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {entries.map((entry) => (
-            <li key={entry.userNum}>
+            <li key={entry.userNum} className="min-w-0">
               <SurfaceCard
                 padding="md"
-                className="transition-colors hover:border-border hover:bg-card/90"
+                variant={entry.rank <= 3 ? 'elevated' : 'default'}
+                interactive
+                className={cn(entry.rank <= 3 && 'ring-primary/10 ring-1')}
               >
                 <div className="flex items-start gap-3">
                   <span
                     className={cn(
-                      'flex size-9 shrink-0 items-center justify-center rounded-lg border font-mono text-sm font-semibold',
+                      'flex size-10 shrink-0 items-center justify-center rounded-lg border font-mono text-sm font-bold',
                       rankBadgeClass(entry.rank),
                     )}
                     aria-label={`${entry.rank}위`}
@@ -54,14 +56,14 @@ export function RankingPage() {
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <Link
-                        className="text-foreground min-w-0 text-base font-semibold break-all underline-offset-4 hover:underline"
+                        className="text-foreground min-w-0 text-base font-semibold break-all underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         to={`/player/${encodeURIComponent(entry.nickname)}`}
                       >
                         {entry.nickname}
                       </Link>
                       <TierBadge tier={entry.tier} />
                     </div>
-                    <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                    <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
                       <span>MMR {entry.mmr}</span>
                       <span>{entry.games}판</span>
                       <span>승률 {winRatePercent(entry.wins, entry.games)}</span>

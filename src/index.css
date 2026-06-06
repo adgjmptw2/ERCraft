@@ -139,3 +139,7 @@
     radial-gradient(ellipse 90% 60% at 50% -30%, color-mix(in oklch, var(--primary) 8%, transparent), transparent 55%),
     radial-gradient(ellipse 70% 50% at 100% 0%, color-mix(in oklch, var(--primary) 4%, transparent), transparent 45%);
 }
+
+.shell-container {
+  @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+}

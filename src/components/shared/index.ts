@@ -1,3 +1,4 @@
+export { MetricPill } from '@/components/shared/MetricPill'
 export { AppShell } from '@/components/shared/AppShell'
 export { DemoDataNotice } from '@/components/shared/DemoDataNotice'
 export { EmptyState } from '@/components/shared/EmptyState'

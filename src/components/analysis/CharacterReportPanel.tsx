@@ -21,9 +21,9 @@ export function CharacterReportPanel({ reports }: CharacterReportPanelProps) {
           description="샘플 매치 기준으로 캐릭터별 데이터가 없어요."
         />
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {reports.map((report) => (
-            <li key={report.characterName}>
+            <li key={report.characterName} className="min-w-0">
               <CharacterSummaryCard report={report} />
             </li>
           ))}

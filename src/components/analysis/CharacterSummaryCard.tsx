@@ -1,4 +1,5 @@
 import { GradeBadge } from '@/components/analysis/GradeBadge'
+import { gradeTopAccentClass } from '@/components/analysis/gradeAccent'
 import type { CharacterAnalysisReport } from '@/analysis/types'
 import { SurfaceCard } from '@/components/shared/SurfaceCard'
 import { cn } from '@/lib/utils'
@@ -13,13 +14,18 @@ export interface CharacterSummaryCardProps {
 
 export function CharacterSummaryCard({ report }: CharacterSummaryCardProps) {
   const insufficient = report.matchCount < 2
+  const topAccent = !insufficient && report.overallGrade ? gradeTopAccentClass(report.overallGrade) : ''
 
   return (
     <SurfaceCard
       padding="md"
       variant={insufficient ? 'default' : 'elevated'}
       interactive
-      className="h-full text-sm"
+      className={cn(
+        'h-full overflow-hidden text-sm',
+        topAccent && 'border-t-2',
+        topAccent,
+      )}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h4 className="text-foreground min-w-0 flex-1 text-base font-semibold break-all">
@@ -35,40 +41,44 @@ export function CharacterSummaryCard({ report }: CharacterSummaryCardProps) {
       </div>
 
       {!insufficient ? (
-        <p className="text-muted-foreground mt-1 text-xs">{report.matchCount}경기 · 룰 기반</p>
+        <p className="text-muted-foreground mt-1 text-sm">{report.matchCount}경기 · 룰 기반</p>
       ) : null}
 
       <div className="border-border/80 mt-4 grid grid-cols-2 gap-3 border-b pb-4">
         <div>
-          <p className="text-muted-foreground text-xs font-medium">평균 순위</p>
-          <p className="text-xl font-bold tracking-tight">{report.avgPlacement.toFixed(2)}</p>
+          <p className="text-muted-foreground text-[10px] font-medium tracking-widest uppercase">평균 순위</p>
+          <p className="text-foreground mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">
+            {report.avgPlacement.toFixed(2)}
+          </p>
         </div>
         <div>
-          <p className="text-muted-foreground text-xs font-medium">KDA</p>
-          <p className="text-xl font-bold tracking-tight">{report.kda.toFixed(2)}</p>
+          <p className="text-muted-foreground text-[10px] font-medium tracking-widest uppercase">KDA</p>
+          <p className="text-foreground mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">
+            {report.kda.toFixed(2)}
+          </p>
         </div>
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
         <div>
-          <dt className="text-muted-foreground">평균 킬</dt>
-          <dd className="font-medium">{report.avgKills.toFixed(2)}</dd>
+          <dt className="text-muted-foreground text-xs tracking-wide uppercase">평균 킬</dt>
+          <dd className="text-foreground mt-0.5 font-semibold">{report.avgKills.toFixed(2)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">평균 어시스트</dt>
-          <dd className="font-medium">{report.avgAssists.toFixed(2)}</dd>
+          <dt className="text-muted-foreground text-xs tracking-wide uppercase">평균 어시스트</dt>
+          <dd className="text-foreground mt-0.5 font-semibold">{report.avgAssists.toFixed(2)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">상위 3위 비율</dt>
-          <dd className="font-medium">{fmtRate(report.top3Rate)}</dd>
+          <dt className="text-muted-foreground text-xs tracking-wide uppercase">상위 3위 비율</dt>
+          <dd className="text-foreground mt-0.5 font-semibold">{fmtRate(report.top3Rate)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">승리 비율</dt>
-          <dd className="font-medium">{fmtRate(report.winRate)}</dd>
+          <dt className="text-muted-foreground text-xs tracking-wide uppercase">승리 비율</dt>
+          <dd className="text-foreground mt-0.5 font-semibold">{fmtRate(report.winRate)}</dd>
         </div>
       </dl>
 
-      <p className={cn('text-muted-foreground mt-3 text-xs leading-relaxed break-words')}>
+      <p className={cn('text-muted-foreground mt-3 text-sm leading-relaxed break-words')}>
         {report.feedback}
       </p>
     </SurfaceCard>

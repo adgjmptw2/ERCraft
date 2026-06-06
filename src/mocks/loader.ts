@@ -9,9 +9,17 @@ import type { CharacterAnalysisReport } from '@/analysis/types'
 import type { PlayerAnalysisReport } from '@/analysis/types'
 import matchesData from '@/mocks/matches.json'
 import playersData from '@/mocks/players.json'
+import { DEMO_LATEST_SEASON } from '@/mocks/seasonHistory'
+export type { DemoSeasonRecord, DemoSeasonSnapshot } from '@/mocks/seasonHistory'
+export {
+  DEMO_LATEST_SEASON,
+  getDemoPlayerSeasonHistory,
+  getDemoSeasonSnapshot,
+} from '@/mocks/seasonHistory'
 import { MOCK_RANKING_ENTRIES } from '@/mocks/rankings'
 import type { MatchSummary, MatchSummaryDTO, Paginated } from '@/types/match'
 import type { PlayerStats, PlayerStatsDTO, PlayerSummary } from '@/types/player'
+import { localizeCharacter, localizeTier } from '@/utils/gameLabels'
 import { toMatchSummaryDTO, toStatsDTO } from '@/utils/dto'
 
 interface PlayerRecord {
@@ -40,15 +48,23 @@ function toSummary(p: PlayerRecord): PlayerSummary {
     userNum: p.userNum,
     nickname: p.nickname,
     level: p.level,
-    tier: p.tier,
+    tier: localizeTier(p.tier),
     profileImageUrl: p.profileImageUrl ?? undefined,
   }
+}
+
+function matchSeasonNumber(match: MatchSummary): number {
+  return match.seasonNumber ?? DEMO_LATEST_SEASON
 }
 
 function sortedMatchesForUser(userNum: number): MatchSummary[] {
   return matchesFile.matches
     .filter((m) => m.userNum === userNum)
     .sort((a, b) => new Date(b.gameStartedAt).getTime() - new Date(a.gameStartedAt).getTime())
+}
+
+function sortedMatchesForUserSeason(userNum: number, seasonNumber: number): MatchSummary[] {
+  return sortedMatchesForUser(userNum).filter((m) => matchSeasonNumber(m) === seasonNumber)
 }
 
 export function getSamplePlayerNicknames(): string[] {
@@ -133,6 +149,24 @@ export function sliceMockMatchHistory(
   }
 }
 
+export function sliceMockMatchHistoryForSeason(
+  userNum: number,
+  seasonNumber: number,
+  page: number,
+  pageSize: number,
+): Paginated<MatchSummary> {
+  const all = sortedMatchesForUserSeason(userNum, seasonNumber)
+  const start = page * pageSize
+  const items = all.slice(start, start + pageSize)
+  const hasNext = start + items.length < all.length
+  return {
+    items,
+    page,
+    pageSize,
+    hasNext,
+  }
+}
+
 export function buildMockStatsDTOForUser(userNum: number): PlayerStatsDTO | null {
   const stats = buildMockStatsForUser(userNum)
   if (!stats) return null
@@ -184,7 +218,61 @@ export function getDemoPlayerCharacterReports(nickname: string): CharacterAnalys
   if (!player) return []
 
   const playerMatches = sortedMatchesForUser(player.userNum)
-  return buildCharacterAnalysisReports(playerMatches)
+  return localizeCharacterReports(buildCharacterAnalysisReports(playerMatches))
+}
+
+export function getDemoPlayerCharacterReportsForSeason(
+  nickname: string,
+  seasonNumber: number,
+): CharacterAnalysisReport[] {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return []
+
+  const playerMatches = sortedMatchesForUserSeason(player.userNum, seasonNumber)
+  return localizeCharacterReports(buildCharacterAnalysisReports(playerMatches))
+}
+
+function localizeCharacterReports(reports: CharacterAnalysisReport[]): CharacterAnalysisReport[] {
+  return reports.map((report) => ({
+    ...report,
+    characterName: localizeCharacter(report.characterName),
+  }))
+}
+
+export function getDemoPlayerAnalysisReportForSeason(
+  nickname: string,
+  seasonNumber: number,
+): PlayerAnalysisReport | null {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return null
+
+  const populationMetrics = buildPopulationMetricsFromMatches(getAllDemoMatchesForAnalysis())
+  const playerMatches = sortedMatchesForUserSeason(player.userNum, seasonNumber)
+
+  return buildPlayerAnalysisReport({
+    nickname: player.nickname,
+    playerMatches,
+    populationMetrics,
+    baselineLabel: '데모 평균',
+  })
+}
+
+export function getDemoPlayerRpTrendForSeason(
+  nickname: string,
+  seasonNumber: number,
+): RpTrendPoint[] {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return []
+
+  return sortedMatchesForUserSeason(player.userNum, seasonNumber)
+    .filter((m): m is MatchSummary & { rpAfter: number } => m.rpAfter != null)
+    .sort((a, b) => new Date(a.gameStartedAt).getTime() - new Date(b.gameStartedAt).getTime())
+    .map((m) => ({
+      matchId: m.matchId,
+      dateLabel: shortDateLabel(m.gameStartedAt),
+      rpAfter: m.rpAfter,
+      rpDelta: m.rpDelta,
+    }))
 }
 
 export interface DemoRankingPosition {

@@ -34,7 +34,7 @@ export function AppShell() {
           </nav>
         </div>
       </header>
-      <main className="shell-container flex flex-1 flex-col py-6 sm:py-8 lg:py-10">
+      <main className="shell-container flex flex-1 flex-col py-9 sm:py-12 lg:py-14">
         <Outlet />
       </main>
     </div>

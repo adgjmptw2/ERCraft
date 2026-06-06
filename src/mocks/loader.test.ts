@@ -7,6 +7,8 @@ import {
   getDemoPlayerCharacterReports,
   getDemoPlayerRankingPosition,
   getDemoPlayerRpTrend,
+  getDemoPlayerSeasonHistory,
+  getDemoSeasonSnapshot,
   getMockPlayerByUserNum,
   getMockPlayerSummaryByNickname,
   getSamplePlayerNicknames,
@@ -78,7 +80,7 @@ describe('mock loader', () => {
   })
 
   it('getMockPlayerSummaryByNickname — 마인', () => {
-    expect(getMockPlayerSummaryByNickname('마인')?.tier).toBe('Platinum II')
+    expect(getMockPlayerSummaryByNickname('마인')?.tier).toBe('플래티넘 2')
   })
 
   it('getDemoPlayerAnalysisReport — 마인 report 생성', () => {
@@ -97,8 +99,8 @@ describe('mock loader', () => {
     const graded = reports.filter((r) => r.matchCount >= 2 && r.overallGrade !== null)
     expect(graded.length).toBeGreaterThanOrEqual(2)
 
-    const yuki = reports.find((r) => r.characterName === 'Yuki')
-    const hyejin = reports.find((r) => r.characterName === 'Hyejin')
+    const yuki = reports.find((r) => r.characterName === '유키')
+    const hyejin = reports.find((r) => r.characterName === '혜진')
     expect(yuki?.matchCount).toBe(5)
     expect(hyejin?.matchCount).toBe(3)
     expect(yuki?.overallGrade).not.toBeNull()
@@ -157,6 +159,20 @@ describe('mock loader', () => {
     expect(detail?.match.characterName).toBe('Yuki')
     expect(detail?.match.placement).toBe(1)
     expect(detail?.nickname).toBe('마인')
+  })
+
+  it('getDemoPlayerSeasonHistory — 마인 S10 포함', () => {
+    const history = getDemoPlayerSeasonHistory(920517)
+    expect(history.length).toBeGreaterThan(0)
+    expect(history.some((s) => s.seasonNumber === 10)).toBe(true)
+    expect(history.find((s) => s.seasonNumber === 10)?.tier).toBe('플래티넘 2')
+  })
+
+  it('getDemoSeasonSnapshot — 마인 S10', () => {
+    const snapshot = getDemoSeasonSnapshot(920517, 10)
+    expect(snapshot).not.toBeNull()
+    expect(snapshot?.wins).toBeGreaterThanOrEqual(0)
+    expect(snapshot?.kdaString).toMatch(/^\d+\.\d{2}$/)
   })
 
   it('getDemoMatchDetail — 없는 matchId null', () => {

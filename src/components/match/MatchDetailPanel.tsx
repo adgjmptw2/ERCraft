@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { DemoDataNotice, MetricPill, SectionHeader, SurfaceCard } from '@/components/shared'
 import type { DemoMatchDetail } from '@/mocks/loader'
 import { cn } from '@/lib/utils'
+import { localizeCharacter } from '@/utils/gameLabels'
 
 export interface MatchDetailPanelProps {
   detail: DemoMatchDetail
@@ -35,7 +36,7 @@ export function MatchDetailPanel({ detail }: MatchDetailPanelProps) {
           />
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight break-all sm:text-3xl">
-              {match.characterName}
+              {localizeCharacter(match.characterName)}
             </h1>
             <span
               className={cn(

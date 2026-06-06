@@ -1,57 +1,67 @@
 import { Link, useParams } from 'react-router-dom'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
-import { GradeBadge } from '@/components/analysis/GradeBadge'
-import { CharacterReportPanel, PlayerReportPanel } from '@/components/analysis'
-import { MatchRow } from '@/components/player'
-import { ProfileScoreGrid, RpTrendCard } from '@/components/profile'
 import {
-  DemoDataNotice,
+  ProfileAnalysisTab,
+  ProfileHero,
+  ProfileRecordsTab,
+  ProfileTabNav,
+  type ProfileTabId,
+} from '@/components/profile'
+import {
+  DEMO_LATEST_SEASON,
+  getDemoPlayerAnalysisReportForSeason,
+  getDemoPlayerCharacterReportsForSeason,
+  getDemoPlayerRankingPosition,
+  getDemoPlayerRpTrendForSeason,
+  getDemoPlayerSeasonHistory,
+  getDemoSeasonSnapshot,
+} from '@/mocks/loader'
+import { getErrorMessage } from '@/utils/errorMessage'
+import {
   EmptyState,
-  MetricPill,
-  SectionHeader,
   Skeleton,
   SkeletonCard,
-  SourceBadge,
-  SurfaceCard,
-  TierBadge,
 } from '@/components/shared'
-import { Button } from '@/components/ui/button'
 import { useMatchDTOHistory } from '@/hooks/useMatchDTOHistory'
 import { usePlayerStatsDTO } from '@/hooks/usePlayerStatsDTO'
 import { usePlayerSummary } from '@/hooks/usePlayerSummary'
-import {
-  buildMockStatsForUser,
-  getDemoPlayerAnalysisReport,
-  getDemoPlayerCharacterReports,
-  getDemoPlayerRankingPosition,
-  getDemoPlayerRpTrend,
-} from '@/mocks/loader'
-import { getErrorMessage } from '@/utils/errorMessage'
 
 export function ProfilePage() {
   const { nickname: nicknameParam } = useParams()
   const nickname = nicknameParam ? decodeURIComponent(nicknameParam) : ''
+  const [activeTab, setActiveTab] = useState<ProfileTabId>('records')
+  const [selectedSeason, setSelectedSeason] = useState(DEMO_LATEST_SEASON)
 
   const summaryQuery = usePlayerSummary(nickname)
   const userNum = summaryQuery.data?.userNum ?? 0
   const statsQuery = usePlayerStatsDTO(userNum, summaryQuery.data?.tier)
   const matchesQuery = useMatchDTOHistory(userNum)
 
-  const analysisReport = useMemo(
-    () =>
-      summaryQuery.data
-        ? getDemoPlayerAnalysisReport(summaryQuery.data.nickname)
-        : null,
-    [summaryQuery.data],
+  const seasonHistory = useMemo(
+    () => (userNum > 0 ? getDemoPlayerSeasonHistory(userNum) : []),
+    [userNum],
+  )
+
+  const seasonSnapshot = useMemo(
+    () => (userNum > 0 ? getDemoSeasonSnapshot(userNum, selectedSeason) : null),
+    [userNum, selectedSeason],
   )
 
   const characterReports = useMemo(
     () =>
       summaryQuery.data
-        ? getDemoPlayerCharacterReports(summaryQuery.data.nickname)
+        ? getDemoPlayerCharacterReportsForSeason(summaryQuery.data.nickname, selectedSeason)
         : [],
-    [summaryQuery.data],
+    [summaryQuery.data, selectedSeason],
+  )
+
+  const analysisReport = useMemo(
+    () =>
+      summaryQuery.data
+        ? getDemoPlayerAnalysisReportForSeason(summaryQuery.data.nickname, selectedSeason)
+        : null,
+    [summaryQuery.data, selectedSeason],
   )
 
   const rankingPosition = useMemo(
@@ -60,24 +70,17 @@ export function ProfilePage() {
   )
 
   const rpTrend = useMemo(
-    () => (summaryQuery.data ? getDemoPlayerRpTrend(summaryQuery.data.nickname) : []),
-    [summaryQuery.data],
+    () =>
+      summaryQuery.data
+        ? getDemoPlayerRpTrendForSeason(summaryQuery.data.nickname, selectedSeason)
+        : [],
+    [summaryQuery.data, selectedSeason],
   )
 
-  const rawStats = useMemo(
-    () => (userNum > 0 ? buildMockStatsForUser(userNum) : null),
-    [userNum],
-  )
-
-  const extendedMetrics = useMemo(() => {
-    if (!rawStats || rawStats.games <= 0) {
-      return { avgAssists: undefined, top3Rate: undefined }
-    }
-    return {
-      avgAssists: rawStats.assists / rawStats.games,
-      top3Rate: (rawStats.top3 / rawStats.games) * 100,
-    }
-  }, [rawStats])
+  const matchItems = useMemo(() => {
+    const all = matchesQuery.data?.pages.flatMap((page) => page.data.items) ?? []
+    return all.filter((m) => (m.seasonNumber ?? DEMO_LATEST_SEASON) === selectedSeason)
+  }, [matchesQuery.data, selectedSeason])
 
   if (!nickname.trim()) {
     return (
@@ -95,14 +98,16 @@ export function ProfilePage() {
   if (summaryQuery.isPending) {
     return (
       <div className="flex flex-col gap-6">
-        <Skeleton className="h-40 w-full rounded-xl" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-10 w-48" />
+        <div className="grid gap-6 lg:grid-cols-[35%_1fr]">
+          <div className="min-h-80">
+            <SkeletonCard />
+          </div>
+          <div className="min-h-96">
+            <SkeletonCard />
+          </div>
         </div>
-        <SkeletonCard />
       </div>
     )
   }
@@ -136,174 +141,53 @@ export function ProfilePage() {
   }
 
   const summary = summaryQuery.data
-  const matchItems = matchesQuery.data?.pages.flatMap((page) => page.data.items) ?? []
   const matchesSource = matchesQuery.data?.pages[0]?.source
-  const stats = statsQuery.data?.data
-
-  const rankingLabel = rankingPosition
-    ? `데모 RP 순위 #${rankingPosition.position}`
-    : '랭킹 데이터 없음'
+  const rp = statsQuery.data?.data?.mmr
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <SurfaceCard variant="accent" padding="lg" className="relative overflow-hidden">
-        <div className="from-primary/5 pointer-events-none absolute inset-0 bg-gradient-to-r via-transparent to-transparent" />
-        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0 space-y-3">
-            <Link
-              className="text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              to="/"
-            >
-              ← 검색으로
-            </Link>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight break-all sm:text-4xl">
-                {summary.nickname}
-              </h1>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <TierBadge tier={summary.tier} />
-                <span className="text-muted-foreground text-sm">Lv.{summary.level}</span>
-                {stats ? (
-                  <span className="text-muted-foreground text-sm">데모 RP {stats.mmr}</span>
-                ) : null}
-                <span className="text-muted-foreground text-sm">{rankingLabel}</span>
-              </div>
-            </div>
-            <DemoDataNotice compact />
-          </div>
-          {stats ? (
-            <div className="flex flex-wrap gap-2 lg:max-w-md lg:justify-end">
-              <MetricPill label="승률" value={`${stats.winRate}%`} />
-              <MetricPill label="KDA" value={stats.kdaString} />
-              <MetricPill label="평균 순위" value={stats.avgPlacement.toFixed(2)} />
-              <MetricPill label="총 판수" value={String(stats.games)} />
-            </div>
-          ) : null}
-        </div>
-      </SurfaceCard>
+      <ProfileHero
+        summary={summary}
+        rankingPosition={rankingPosition}
+        seasons={seasonHistory}
+        selectedSeason={selectedSeason}
+        selectedTier={seasonSnapshot?.tier ?? summary.tier}
+        onSeasonChange={setSelectedSeason}
+        rp={rp}
+      />
 
-      <section className="space-y-4">
-        <SectionHeader
-          title="시즌 지표"
-          description="최근 데모 매치에서 집계한 샘플 통계입니다."
-          badge={
-            statsQuery.isSuccess && statsQuery.data?.source ? (
-              <SourceBadge source={statsQuery.data.source} />
-            ) : undefined
-          }
-        />
-        {statsQuery.isPending ? (
-          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-        ) : statsQuery.isError ? (
-          <EmptyState
-            title="통계 정보를 불러오지 못했습니다"
-            description={getErrorMessage(statsQuery.error, '잠시 후 다시 시도해주세요.')}
-          />
-        ) : statsQuery.isSuccess && stats ? (
-          <ProfileScoreGrid
-            stats={stats}
-            rankingPosition={rankingPosition}
-            avgAssists={extendedMetrics.avgAssists}
-            top3Rate={extendedMetrics.top3Rate}
-          />
-        ) : null}
-      </section>
+      <ProfileTabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
-        {analysisReport?.status === 'ok' ? (
-          <aside className="lg:col-span-5">
-            <SurfaceCard variant="elevated" padding="lg" className="h-full space-y-4">
-              <SectionHeader
-                title="플레이 리포트 요약"
-                description="최근 데모 매치 기준 룰 기반 분석"
-                size="default"
-              />
-              <div className="space-y-3">
-                <div>
-                  <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                    종합 등급
-                  </p>
-                  <div className="mt-2">
-                    {analysisReport.overallGrade ? (
-                      <GradeBadge grade={analysisReport.overallGrade} className="text-base" />
-                    ) : (
-                      <p className="text-sm font-medium">분석 데이터 부족</p>
-                    )}
-                  </div>
-                </div>
-                {analysisReport.overallPercentile != null ? (
-                  <MetricPill
-                    label="샘플 대비 백분위"
-                    value={`${analysisReport.overallPercentile.toFixed(0)}%`}
-                    className="w-full"
-                  />
-                ) : null}
-                <p className="text-foreground text-sm leading-relaxed">{analysisReport.summary}</p>
-              </div>
-            </SurfaceCard>
-          </aside>
-        ) : null}
-
-        <div className={analysisReport?.status === 'ok' ? 'lg:col-span-7' : 'lg:col-span-12'}>
-          <RpTrendCard points={rpTrend} />
-        </div>
-      </div>
-
-      <SurfaceCard variant="inset" padding="lg" className="space-y-8 lg:space-y-10">
-        <SectionHeader
-          title="플레이 분석"
-          description="최근 데모 매치를 바탕으로 플레이 흐름과 캐릭터별 안정성을 확인합니다."
-          size="lg"
-        />
-        {analysisReport ? <PlayerReportPanel report={analysisReport} /> : null}
-        <CharacterReportPanel reports={characterReports} />
-      </SurfaceCard>
-
-      <section className="space-y-4">
-        <SectionHeader
-          title="최근 매치"
-          description="카드를 눌러 샘플 매치 상세와 RP 변화를 확인합니다."
-          badge={matchesSource ? <SourceBadge source={matchesSource} /> : undefined}
-        />
-        {matchesQuery.isPending ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-        ) : matchesQuery.isError ? (
-          <EmptyState
-            title="전적 정보를 불러오지 못했습니다"
-            description={getErrorMessage(matchesQuery.error, '잠시 후 다시 시도해주세요.')}
-          />
-        ) : matchItems.length === 0 ? (
-          <EmptyState title="기록된 전적이 없습니다" />
+      <div role="tabpanel" aria-label={activeTab === 'records' ? '전적' : '분석'}>
+        {activeTab === 'records' ? (
+          seasonSnapshot ? (
+            <ProfileRecordsTab
+              seasonSnapshot={seasonSnapshot}
+              characterReports={characterReports}
+              userNum={userNum}
+              matchItems={matchItems}
+              matchesSource={matchesSource}
+              matchesPending={matchesQuery.isPending}
+              matchesError={matchesQuery.isError}
+              matchesErrorObj={matchesQuery.error}
+              hasNextPage={
+                selectedSeason === DEMO_LATEST_SEASON ? (matchesQuery.hasNextPage ?? false) : false
+              }
+              isFetchingNextPage={matchesQuery.isFetchingNextPage}
+              onLoadMore={() => void matchesQuery.fetchNextPage()}
+            />
+          ) : (
+            <EmptyState title="해당 시즌 데이터가 없습니다" />
+          )
         ) : (
-          <>
-            <ul className="grid gap-3 md:grid-cols-2">
-              {matchItems.map((m) => (
-                <MatchRow key={m.matchId} match={m} />
-              ))}
-            </ul>
-            {matchesQuery.hasNextPage ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full sm:w-auto"
-                disabled={matchesQuery.isFetchingNextPage}
-                onClick={() => void matchesQuery.fetchNextPage()}
-              >
-                {matchesQuery.isFetchingNextPage ? '불러오는 중…' : '더 보기'}
-              </Button>
-            ) : null}
-          </>
+          <ProfileAnalysisTab
+            analysisReport={analysisReport}
+            characterReports={characterReports}
+            rpTrend={rpTrend}
+            seasonNumber={selectedSeason}
+          />
         )}
-      </section>
+      </div>
     </div>
   )
 }

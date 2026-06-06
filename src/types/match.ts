@@ -15,6 +15,7 @@ export interface MatchSummary {
   assists: number
   gameStartedAt: string
   victory: boolean
+  seasonNumber?: number
   rpAfter?: number
   rpDelta?: number
 }

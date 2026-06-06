@@ -56,7 +56,7 @@ const baseMatches: MatchSummary[] = [
 describe('toStatsDTO', () => {
   it('mostPlayedCharacter가 최다 판수 캐릭터', () => {
     const dto = toStatsDTO(baseStats, baseMatches, 'Gold II')
-    expect(dto.mostPlayedCharacter.name).toBe('Yuki')
+    expect(dto.mostPlayedCharacter.name).toBe('유키')
     expect(dto.mostPlayedCharacter.count).toBe(2)
   })
 
@@ -80,7 +80,7 @@ describe('toStatsDTO', () => {
       { ...baseMatches[1], characterName: 'Adela' },
     ]
     const dto = toStatsDTO(baseStats, matches, 'Gold II')
-    expect(dto.mostPlayedCharacter.name).toBe('Adela')
+    expect(dto.mostPlayedCharacter.name).toBe('아델라')
   })
 })
 

@@ -1,5 +1,6 @@
 import type { MatchSummary, MatchSummaryDTO } from '@/types/match'
 import type { PlayerStats, PlayerStatsDTO } from '@/types/player'
+import { localizeCharacter, localizeTier } from '@/utils/gameLabels'
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100
@@ -38,6 +39,7 @@ export function toMatchSummaryDTO(match: MatchSummary, now: Date = new Date()): 
   const kdaNum = round2(kdaRatio(match.kills, match.deaths, match.assists))
   return {
     ...match,
+    characterName: localizeCharacter(match.characterName),
     kdaString: kdaNum.toFixed(2),
     placementLabel: ordinal(match.placement),
     relativeTime: relativeTime(match.gameStartedAt, now),
@@ -75,8 +77,8 @@ export function toStatsDTO(
     avgPlacement: round2(avgPlacement),
     kda,
     kdaString: kda.toFixed(2),
-    mostPlayedCharacter: best,
-    tier,
+    mostPlayedCharacter: { name: localizeCharacter(best.name), count: best.count },
+    tier: localizeTier(tier),
     mmr: stats.mmr,
   }
 }

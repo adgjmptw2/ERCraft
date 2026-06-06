@@ -8,7 +8,7 @@ export interface CharacterReportPanelProps {
 
 export function CharacterReportPanel({ reports }: CharacterReportPanelProps) {
   return (
-    <section className="space-y-4 text-sm" aria-labelledby="character-report-heading">
+    <section className="space-y-6 text-sm" aria-labelledby="character-report-heading">
       <SectionHeader
         id="character-report-heading"
         title="캐릭터별 플레이 분석"
@@ -21,7 +21,7 @@ export function CharacterReportPanel({ reports }: CharacterReportPanelProps) {
           description="샘플 매치 기준으로 캐릭터별 데이터가 없어요."
         />
       ) : (
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {reports.map((report) => (
             <li key={report.characterName} className="min-w-0">
               <CharacterSummaryCard report={report} />

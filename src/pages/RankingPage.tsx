@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { DemoDataNotice, EmptyState, SurfaceCard, TierBadge } from '@/components/shared'
 import { MOCK_RANKING_ENTRIES } from '@/mocks/rankings'
 import { cn } from '@/lib/utils'
+import { localizeTier } from '@/utils/gameLabels'
 
 function winRatePercent(wins: number, games: number): string {
   if (games <= 0) return '-'
@@ -61,7 +62,7 @@ export function RankingPage() {
                       >
                         {entry.nickname}
                       </Link>
-                      <TierBadge tier={entry.tier} />
+                      <TierBadge tier={localizeTier(entry.tier)} />
                     </div>
                     <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
                       <span>RP {entry.mmr}</span>

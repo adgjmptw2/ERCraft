@@ -9,6 +9,7 @@ import type { CharacterAnalysisReport } from '@/analysis/types'
 import type { PlayerAnalysisReport } from '@/analysis/types'
 import matchesData from '@/mocks/matches.json'
 import playersData from '@/mocks/players.json'
+import { MOCK_RANKING_ENTRIES } from '@/mocks/rankings'
 import type { MatchSummary, MatchSummaryDTO, Paginated } from '@/types/match'
 import type { PlayerStats, PlayerStatsDTO, PlayerSummary } from '@/types/player'
 import { toMatchSummaryDTO, toStatsDTO } from '@/utils/dto'
@@ -184,4 +185,96 @@ export function getDemoPlayerCharacterReports(nickname: string): CharacterAnalys
 
   const playerMatches = sortedMatchesForUser(player.userNum)
   return buildCharacterAnalysisReports(playerMatches)
+}
+
+export interface DemoRankingPosition {
+  position: number
+  total: number
+}
+
+export interface RpTrendPoint {
+  matchId: string
+  dateLabel: string
+  rpAfter: number
+  rpDelta?: number
+}
+
+export interface DemoMatchDetail {
+  match: MatchSummary
+  nickname: string
+  kdaString: string
+  placementLabel: string
+  playedAtLabel: string
+  insight: string
+}
+
+function shortDateLabel(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+function longDateLabel(iso: string): string {
+  return new Date(iso).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function placementOrdinal(n: number): string {
+  return `${n}위`
+}
+
+function buildDemoMatchInsight(match: MatchSummary, kda: number): string {
+  if (match.placement === 1) return '우승으로 마무리한 샘플 매치입니다.'
+  if (match.placement <= 3) return '상위권으로 마무리한 샘플 매치입니다.'
+  if (kda >= 3 && match.placement > 5) {
+    return '교전 지표는 좋지만 순위는 아쉬운 샘플 매치입니다.'
+  }
+  if (match.placement >= 8) return '후반 생존과 순위 관리가 필요했던 샘플 매치입니다.'
+  return '중위권에서 마무리한 샘플 매치입니다.'
+}
+
+export function getDemoPlayerRankingPosition(nickname: string): DemoRankingPosition | null {
+  const n = nickname.trim().toLowerCase()
+  const entry = MOCK_RANKING_ENTRIES.find((e) => e.nickname.toLowerCase() === n)
+  if (!entry) return null
+  return { position: entry.rank, total: MOCK_RANKING_ENTRIES.length }
+}
+
+export function getDemoPlayerRpTrend(nickname: string): RpTrendPoint[] {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return []
+
+  return sortedMatchesForUser(player.userNum)
+    .filter((m): m is MatchSummary & { rpAfter: number } => m.rpAfter != null)
+    .sort((a, b) => new Date(a.gameStartedAt).getTime() - new Date(b.gameStartedAt).getTime())
+    .map((m) => ({
+      matchId: m.matchId,
+      dateLabel: shortDateLabel(m.gameStartedAt),
+      rpAfter: m.rpAfter,
+      rpDelta: m.rpDelta,
+    }))
+}
+
+export function getDemoMatchDetail(matchId: string): DemoMatchDetail | null {
+  const match = matchesFile.matches.find((m) => m.matchId === matchId)
+  if (!match) return null
+
+  const player = getMockPlayerByUserNum(match.userNum)
+  if (!player) return null
+
+  const deaths = match.deaths === 0 ? 1 : match.deaths
+  const kda = Math.round(((match.kills + match.assists) / deaths) * 100) / 100
+
+  return {
+    match,
+    nickname: player.nickname,
+    kdaString: kda.toFixed(2),
+    placementLabel: placementOrdinal(match.placement),
+    playedAtLabel: longDateLabel(match.gameStartedAt),
+    insight: buildDemoMatchInsight(match, kda),
+  }
 }

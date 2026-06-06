@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildMockStatsForUser,
+  getDemoMatchDetail,
   getDemoPlayerAnalysisReport,
   getDemoPlayerCharacterReports,
+  getDemoPlayerRankingPosition,
+  getDemoPlayerRpTrend,
   getMockPlayerByUserNum,
   getMockPlayerSummaryByNickname,
   getSamplePlayerNicknames,
@@ -126,5 +129,37 @@ describe('mock loader', () => {
 
   it('getDemoPlayerAnalysisReport — 기존 동작 유지', () => {
     expect(getDemoPlayerAnalysisReport('한강쐐기')?.status).toBe('ok')
+  })
+
+  it('getDemoPlayerRankingPosition — 마인', () => {
+    expect(getDemoPlayerRankingPosition('마인')).toEqual({ position: 5, total: 16 })
+  })
+
+  it('getDemoPlayerRankingPosition — 없는 닉네임 null', () => {
+    expect(getDemoPlayerRankingPosition('없는닉네임xyz')).toBeNull()
+  })
+
+  it('getDemoPlayerRpTrend — 마인 trend point', () => {
+    const trend = getDemoPlayerRpTrend('마인')
+    expect(trend.length).toBeGreaterThanOrEqual(2)
+    expect(trend[0]?.rpAfter).toBeGreaterThan(0)
+    expect(trend.at(-1)?.rpAfter).toBe(2420)
+  })
+
+  it('getDemoPlayerRpTrend — rpAfter 없는 플레이어 빈 배열', () => {
+    expect(getDemoPlayerRpTrend('한강쐐기')).toEqual([])
+  })
+
+  it('getDemoMatchDetail — demo-mine-001', () => {
+    const detail = getDemoMatchDetail('demo-mine-001')
+    expect(detail).not.toBeNull()
+    expect(detail?.match.matchId).toBe('demo-mine-001')
+    expect(detail?.match.characterName).toBe('Yuki')
+    expect(detail?.match.placement).toBe(1)
+    expect(detail?.nickname).toBe('마인')
+  })
+
+  it('getDemoMatchDetail — 없는 matchId null', () => {
+    expect(getDemoMatchDetail('missing-match-id')).toBeNull()
   })
 })

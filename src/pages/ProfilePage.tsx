@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { GradeBadge } from '@/components/analysis/GradeBadge'
 import { CharacterReportPanel, PlayerReportPanel } from '@/components/analysis'
 import { MatchRow } from '@/components/player'
+import { ProfileScoreGrid, RpTrendCard } from '@/components/profile'
 import {
   DemoDataNotice,
   EmptyState,
@@ -12,7 +13,6 @@ import {
   Skeleton,
   SkeletonCard,
   SourceBadge,
-  StatCard,
   SurfaceCard,
   TierBadge,
 } from '@/components/shared'
@@ -20,7 +20,13 @@ import { Button } from '@/components/ui/button'
 import { useMatchDTOHistory } from '@/hooks/useMatchDTOHistory'
 import { usePlayerStatsDTO } from '@/hooks/usePlayerStatsDTO'
 import { usePlayerSummary } from '@/hooks/usePlayerSummary'
-import { getDemoPlayerAnalysisReport, getDemoPlayerCharacterReports } from '@/mocks/loader'
+import {
+  buildMockStatsForUser,
+  getDemoPlayerAnalysisReport,
+  getDemoPlayerCharacterReports,
+  getDemoPlayerRankingPosition,
+  getDemoPlayerRpTrend,
+} from '@/mocks/loader'
 import { getErrorMessage } from '@/utils/errorMessage'
 
 export function ProfilePage() {
@@ -47,6 +53,31 @@ export function ProfilePage() {
         : [],
     [summaryQuery.data],
   )
+
+  const rankingPosition = useMemo(
+    () => (summaryQuery.data ? getDemoPlayerRankingPosition(summaryQuery.data.nickname) : null),
+    [summaryQuery.data],
+  )
+
+  const rpTrend = useMemo(
+    () => (summaryQuery.data ? getDemoPlayerRpTrend(summaryQuery.data.nickname) : []),
+    [summaryQuery.data],
+  )
+
+  const rawStats = useMemo(
+    () => (userNum > 0 ? buildMockStatsForUser(userNum) : null),
+    [userNum],
+  )
+
+  const extendedMetrics = useMemo(() => {
+    if (!rawStats || rawStats.games <= 0) {
+      return { avgAssists: undefined, top3Rate: undefined }
+    }
+    return {
+      avgAssists: rawStats.assists / rawStats.games,
+      top3Rate: (rawStats.top3 / rawStats.games) * 100,
+    }
+  }, [rawStats])
 
   if (!nickname.trim()) {
     return (
@@ -109,6 +140,10 @@ export function ProfilePage() {
   const matchesSource = matchesQuery.data?.pages[0]?.source
   const stats = statsQuery.data?.data
 
+  const rankingLabel = rankingPosition
+    ? `데모 RP 순위 #${rankingPosition.position}`
+    : '랭킹 데이터 없음'
+
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
       <SurfaceCard variant="accent" padding="lg" className="relative overflow-hidden">
@@ -129,8 +164,9 @@ export function ProfilePage() {
                 <TierBadge tier={summary.tier} />
                 <span className="text-muted-foreground text-sm">Lv.{summary.level}</span>
                 {stats ? (
-                  <span className="text-muted-foreground text-sm">MMR {stats.mmr}</span>
+                  <span className="text-muted-foreground text-sm">데모 RP {stats.mmr}</span>
                 ) : null}
+                <span className="text-muted-foreground text-sm">{rankingLabel}</span>
               </div>
             </div>
             <DemoDataNotice compact />
@@ -146,51 +182,43 @@ export function ProfilePage() {
         </div>
       </SurfaceCard>
 
-      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
-        <section className="space-y-4 lg:col-span-8">
-          <SectionHeader
-            title="시즌 요약"
-            description="최근 데모 매치에서 집계한 기본 통계입니다."
-            badge={
-              statsQuery.isSuccess && statsQuery.data?.source ? (
-                <SourceBadge source={statsQuery.data.source} />
-              ) : undefined
-            }
+      <section className="space-y-4">
+        <SectionHeader
+          title="시즌 지표"
+          description="최근 데모 매치에서 집계한 샘플 통계입니다."
+          badge={
+            statsQuery.isSuccess && statsQuery.data?.source ? (
+              <SourceBadge source={statsQuery.data.source} />
+            ) : undefined
+          }
+        />
+        {statsQuery.isPending ? (
+          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : statsQuery.isError ? (
+          <EmptyState
+            title="통계 정보를 불러오지 못했습니다"
+            description={getErrorMessage(statsQuery.error, '잠시 후 다시 시도해주세요.')}
           />
-          {statsQuery.isPending ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-            </div>
-          ) : statsQuery.isError ? (
-            <EmptyState
-              title="통계 정보를 불러오지 못했습니다"
-              description={getErrorMessage(statsQuery.error, '잠시 후 다시 시도해주세요.')}
-            />
-          ) : statsQuery.isSuccess && stats ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <StatCard label="티어" value={stats.tier} highlight />
-              <StatCard label="MMR" value={stats.mmr} highlight />
-              <StatCard label="승률" value={`${stats.winRate}%`} highlight />
-              <StatCard label="KDA" value={stats.kdaString} />
-              <StatCard label="평균 순위" value={stats.avgPlacement.toFixed(2)} />
-              <StatCard label="평균 킬" value={stats.avgKills.toFixed(2)} />
-              <StatCard label="총 판수" value={stats.games} />
-              <StatCard
-                label="주 캐릭터"
-                value={stats.mostPlayedCharacter.name}
-                description={`${stats.mostPlayedCharacter.count}판`}
-                highlight
-                className="sm:col-span-2 lg:col-span-3"
-              />
-            </div>
-          ) : null}
-        </section>
+        ) : statsQuery.isSuccess && stats ? (
+          <ProfileScoreGrid
+            stats={stats}
+            rankingPosition={rankingPosition}
+            avgAssists={extendedMetrics.avgAssists}
+            top3Rate={extendedMetrics.top3Rate}
+          />
+        ) : null}
+      </section>
 
+      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
         {analysisReport?.status === 'ok' ? (
-          <aside className="lg:col-span-4">
-            <SurfaceCard variant="elevated" padding="lg" className="sticky top-20 space-y-4">
+          <aside className="lg:col-span-5">
+            <SurfaceCard variant="elevated" padding="lg" className="h-full space-y-4">
               <SectionHeader
                 title="플레이 리포트 요약"
                 description="최근 데모 매치 기준 룰 기반 분석"
@@ -221,6 +249,10 @@ export function ProfilePage() {
             </SurfaceCard>
           </aside>
         ) : null}
+
+        <div className={analysisReport?.status === 'ok' ? 'lg:col-span-7' : 'lg:col-span-12'}>
+          <RpTrendCard points={rpTrend} />
+        </div>
       </div>
 
       <SurfaceCard variant="inset" padding="lg" className="space-y-8 lg:space-y-10">
@@ -236,7 +268,7 @@ export function ProfilePage() {
       <section className="space-y-4">
         <SectionHeader
           title="최근 매치"
-          description="분석에 사용된 최근 전적 흐름을 확인합니다."
+          description="카드를 눌러 샘플 매치 상세와 RP 변화를 확인합니다."
           badge={matchesSource ? <SourceBadge source={matchesSource} /> : undefined}
         />
         {matchesQuery.isPending ? (

@@ -229,7 +229,9 @@
       "deaths": 2,
       "assists": 4,
       "gameStartedAt": "2026-05-01T20:30:00.000Z",
-      "victory": true
+      "victory": true,
+      "rpAfter": 2420,
+      "rpDelta": 18
     },
     {
       "matchId": "demo-mine-002",
@@ -240,7 +242,9 @@
       "deaths": 2,
       "assists": 6,
       "gameStartedAt": "2026-04-28T18:15:00.000Z",
-      "victory": true
+      "victory": true,
+      "rpAfter": 2402,
+      "rpDelta": 12
     },
     {
       "matchId": "demo-mine-003",
@@ -251,7 +255,9 @@
       "deaths": 3,
       "assists": 5,
       "gameStartedAt": "2026-04-25T15:40:00.000Z",
-      "victory": true
+      "victory": true,
+      "rpAfter": 2390,
+      "rpDelta": 8
     },
     {
       "matchId": "demo-mine-004",
@@ -262,7 +268,9 @@
       "deaths": 3,
       "assists": 4,
       "gameStartedAt": "2026-04-22T13:05:00.000Z",
-      "victory": false
+      "victory": false,
+      "rpAfter": 2382,
+      "rpDelta": 8
     },
     {
       "matchId": "demo-mine-005",
@@ -273,7 +281,9 @@
       "deaths": 4,
       "assists": 3,
       "gameStartedAt": "2026-04-20T11:20:00.000Z",
-      "victory": false
+      "victory": false,
+      "rpAfter": 2374,
+      "rpDelta": -8
     },
     {
       "matchId": "demo-mine-006",
@@ -284,7 +294,9 @@
       "deaths": 3,
       "assists": 6,
       "gameStartedAt": "2026-04-18T19:50:00.000Z",
-      "victory": true
+      "victory": true,
+      "rpAfter": 2382,
+      "rpDelta": 10
     },
     {
       "matchId": "demo-mine-007",
@@ -295,7 +307,9 @@
       "deaths": 4,
       "assists": 4,
       "gameStartedAt": "2026-04-16T17:25:00.000Z",
-      "victory": false
+      "victory": false,
+      "rpAfter": 2372,
+      "rpDelta": 6
     },
     {
       "matchId": "demo-mine-008",
@@ -306,7 +320,9 @@
       "deaths": 5,
       "assists": 5,
       "gameStartedAt": "2026-04-14T14:10:00.000Z",
-      "victory": false
+      "victory": false,
+      "rpAfter": 2366,
+      "rpDelta": 12
     },
     {
       "matchId": "demo-mine-009",
@@ -317,7 +333,9 @@
       "deaths": 6,
       "assists": 3,
       "gameStartedAt": "2026-04-12T10:45:00.000Z",
-      "victory": false
+      "victory": false,
+      "rpAfter": 2354,
+      "rpDelta": 12
     },
     {
       "matchId": "demo-mine-010",
@@ -328,7 +346,9 @@
       "deaths": 5,
       "assists": 2,
       "gameStartedAt": "2026-04-10T21:30:00.000Z",
-      "victory": false
+      "victory": false,
+      "rpAfter": 2342,
+      "rpDelta": -8
     },
     {
       "matchId": "demo-mine-011",
@@ -339,7 +359,9 @@
       "deaths": 7,
       "assists": 2,
       "gameStartedAt": "2026-04-08T16:55:00.000Z",
-      "victory": false
+      "victory": false,
+      "rpAfter": 2350,
+      "rpDelta": -10
     },
     {
       "matchId": "demo-mine-012",
@@ -350,7 +372,9 @@
       "deaths": 8,
       "assists": 1,
       "gameStartedAt": "2026-04-06T12:20:00.000Z",
-      "victory": false
+      "victory": false,
+      "rpAfter": 2360,
+      "rpDelta": 0
     }
   ]
 }

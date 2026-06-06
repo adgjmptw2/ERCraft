@@ -15,6 +15,8 @@ export interface MatchSummary {
   assists: number
   gameStartedAt: string
   victory: boolean
+  rpAfter?: number
+  rpDelta?: number
 }
 
 export interface MatchDetail extends MatchSummary {

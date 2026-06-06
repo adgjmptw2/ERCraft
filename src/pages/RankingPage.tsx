@@ -23,9 +23,9 @@ export function RankingPage() {
     <div className="flex flex-col gap-8">
       <SurfaceCard variant="accent" padding="lg" className="space-y-3">
         <div className="max-w-3xl space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">데모 랭킹</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">데모 RP 랭킹</h1>
           <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-            샘플 데이터로 랭킹 화면을 미리 확인하고, 프로필로 이동해 플레이 리포트를 탐색해보세요.
+            샘플 데이터 기준 RP 순위입니다. 프로필로 이동해 플레이 리포트와 RP 흐름을 확인해보세요.
           </p>
         </div>
         <DemoDataNotice compact />
@@ -64,7 +64,7 @@ export function RankingPage() {
                       <TierBadge tier={entry.tier} />
                     </div>
                     <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
-                      <span>MMR {entry.mmr}</span>
+                      <span>RP {entry.mmr}</span>
                       <span>{entry.games}판</span>
                       <span>승률 {winRatePercent(entry.wins, entry.games)}</span>
                     </div>

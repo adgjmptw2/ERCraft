@@ -6,6 +6,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AppShell } from '@/components/shared/AppShell'
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage'
 import { HomePage } from '@/pages/HomePage'
+import { MatchDetailPage } from '@/pages/MatchDetailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { RankingPage } from '@/pages/RankingPage'
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/', element: <HomePage /> },
       { path: '/player/:nickname', element: <ProfilePage /> },
+      { path: '/matches/:matchId', element: <MatchDetailPage /> },
       { path: '/ranking', element: <RankingPage /> },
       { path: '/auth/callback', element: <AuthCallbackPage /> },
       { path: '*', element: <NotFoundPage /> },

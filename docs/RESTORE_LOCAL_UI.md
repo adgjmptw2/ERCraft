@@ -6,18 +6,38 @@
 이 저장소에 **2번 → 1번 변환 패치**를 포함해 두었습니다.  
 (GitHub에서 찾는 게 아니라, **프로젝트 폴더 안 `patches/`** 에 있습니다.)
 
-## PowerShell (Desktop ERCraft-main)
+## Windows (Desktop ERCraft-main)
+
+PowerShell에서 `npm`이 **디지털 서명** 오류로 막히면, **cmd** 또는 **`npm.cmd` / `node`** 를 쓰세요.
+
+### 방법 A — cmd 배치 파일 (권장)
+
+탐색기에서 `ERCraft-main\restore-ui.cmd` 더블클릭, 또는 **cmd**에서:
+
+```cmd
+cd /d "C:\Users\MINE\Desktop\Study\ERCraft-main"
+restore-ui.cmd
+```
+
+### 방법 B — cmd에서 직접
+
+```cmd
+cd /d "C:\Users\MINE\Desktop\Study\ERCraft-main"
+node scripts\apply-records-ui-patch.mjs
+npm.cmd run dev
+```
+
+### 방법 C — PowerShell (npm 대신 npm.cmd)
 
 ```powershell
 cd "C:\Users\MINE\Desktop\Study\ERCraft-main"
-npm run restore:ui
-npm install
-npm run dev
+node scripts/apply-records-ui-patch.mjs
+npm.cmd run dev
 ```
 
 > `patches/` 폴더가 없으면 먼저 이 브랜치에서 패치만 받으세요:  
 > `git fetch origin cursor/cloud-agent-1781159192012-5f23r`  
-> `git checkout origin/cursor/cloud-agent-1781159192012-5f23r -- patches scripts/apply-records-ui-patch.mjs`
+> `git checkout origin/cursor/cloud-agent-1781159192012-5f23r -- patches scripts/apply-records-ui-patch.mjs restore-ui.cmd`
 
 ## 1번 UI 확인
 

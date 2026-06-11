@@ -8,36 +8,56 @@
 
 ## Windows (Desktop ERCraft-main)
 
-PowerShell에서 `npm`이 **디지털 서명** 오류로 막히면, **cmd** 또는 **`npm.cmd` / `node`** 를 쓰세요.
+PowerShell에서 `npm`이 **디지털 서명** 오류로 막히거나, Git Bash에서 **`node: command not found`** 가 나오면 아래를 쓰세요.
 
-### 방법 A — cmd 배치 파일 (권장)
+### 1단계 — 패치 적용 (Node.js 불필요, Git만 있으면 됨)
 
-탐색기에서 `ERCraft-main\restore-ui.cmd` 더블클릭, 또는 **cmd**에서:
+**Git Bash (MINGW64):**
+
+```bash
+cd "/c/Users/MINE/Desktop/Study/ERCraft-main"
+bash scripts/apply-records-ui-patch.sh
+```
+
+또는 한 줄:
+
+```bash
+git apply --3way patches/restore-records-ui-v2.patch
+```
+
+**cmd:**
 
 ```cmd
 cd /d "C:\Users\MINE\Desktop\Study\ERCraft-main"
 restore-ui.cmd
 ```
 
-### 방법 B — cmd에서 직접
+(`restore-ui.cmd`는 `git apply`만 실행. Node 없으면 패치 후 종료)
+
+### 2단계 — dev 서버 (Node.js 필요)
+
+Git Bash PATH에 `node`가 없을 수 있습니다. **cmd** 또는 **PowerShell**에서:
 
 ```cmd
 cd /d "C:\Users\MINE\Desktop\Study\ERCraft-main"
-node scripts\apply-records-ui-patch.mjs
 npm.cmd run dev
 ```
 
-### 방법 C — PowerShell (npm 대신 npm.cmd)
+Node 설치 확인:
 
-```powershell
-cd "C:\Users\MINE\Desktop\Study\ERCraft-main"
-node scripts/apply-records-ui-patch.mjs
-npm.cmd run dev
+```cmd
+where node
+where npm
 ```
 
-> `patches/` 폴더가 없으면 먼저 이 브랜치에서 패치만 받으세요:  
-> `git fetch origin cursor/cloud-agent-1781159192012-5f23r`  
-> `git checkout origin/cursor/cloud-agent-1781159192012-5f23r -- patches scripts/apply-records-ui-patch.mjs restore-ui.cmd`
+없으면 https://nodejs.org LTS 설치 후 터미널을 다시 여세요.
+
+### 패치 파일만 받기
+
+```bash
+git fetch origin cursor/cloud-agent-1781159192012-5f23r
+git checkout origin/cursor/cloud-agent-1781159192012-5f23r -- patches scripts/apply-records-ui-patch.sh restore-ui.cmd
+```
 
 ## 1번 UI 확인
 

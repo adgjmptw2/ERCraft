@@ -27,8 +27,8 @@
     "samples:remove-equipment-preview": "node scripts/remove-equipment-preview-overrides.mjs",
     "code-maps:sync": "node scripts/sync-er-code-maps.mjs",
     "samples:gen-dakgg": "node docs/gen-dakgg-sample.mjs",
-    "restore:ui": "node scripts/force-restore-ui.mjs",
-    "restore:ui:patch": "node scripts/apply-records-ui-patch.mjs"
+    "restore:ui": "node scripts/apply-records-ui-patch.mjs",
+    "restore:ui:github": "node scripts/force-restore-ui.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

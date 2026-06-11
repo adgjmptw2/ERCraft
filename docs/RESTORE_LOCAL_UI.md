@@ -10,10 +10,14 @@
 
 ```powershell
 cd "C:\Users\MINE\Desktop\Study\ERCraft-main"
-node scripts/apply-records-ui-patch.mjs
+npm run restore:ui
 npm install
 npm run dev
 ```
+
+> `patches/` 폴더가 없으면 먼저 이 브랜치에서 패치만 받으세요:  
+> `git fetch origin cursor/cloud-agent-1781159192012-5f23r`  
+> `git checkout origin/cursor/cloud-agent-1781159192012-5f23r -- patches scripts/apply-records-ui-patch.mjs`
 
 ## 1번 UI 확인
 

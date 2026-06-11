@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 
 import { HeaderPlayerSearch } from '@/components/shared/HeaderPlayerSearch'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
+import { UI_BUILD_ID } from '@/lib/uiBuild'
 import { cn } from '@/lib/utils'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -39,6 +40,11 @@ export function AppShell() {
       <main className="shell-container flex min-w-0 flex-1 flex-col overflow-x-hidden py-9 sm:py-12 lg:py-14">
         <Outlet />
       </main>
+      {import.meta.env.DEV ? (
+        <p className="text-muted-foreground/50 pointer-events-none fixed bottom-1 right-2 z-50 text-[9px] tabular-nums select-none">
+          {UI_BUILD_ID}
+        </p>
+      ) : null}
     </div>
   )
 }

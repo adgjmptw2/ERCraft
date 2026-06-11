@@ -1,5 +1,8 @@
 // MOCK — 실 API 붙기 전
 
+import { buildPlayStyleAnalysis } from '@/analysis/playStyleAnalysis'
+import type { PlayerPlayStyleAnalysis } from '@/analysis/playStyleTypes'
+import { buildRoleSummary, type RoleSummaryResult } from '@/analysis/roleClassifier'
 import {
   buildPopulationMetricsFromMatches,
   buildPlayerAnalysisReport,
@@ -8,7 +11,32 @@ import { buildCharacterAnalysisReports } from '@/analysis/characterReport'
 import type { CharacterAnalysisReport } from '@/analysis/types'
 import type { PlayerAnalysisReport } from '@/analysis/types'
 import matchesData from '@/mocks/matches.json'
+// TEST SAMPLE — START equipment-preview import — npm run samples:remove-equipment-preview
+import { MATCH_EQUIPMENT_PREVIEW_OVERRIDES } from '@/mocks/equipmentPreviewOverrides'
+// END TEST SAMPLE equipment-preview import
 import playersData from '@/mocks/players.json'
+// TEST SAMPLE(dak.gg) — START imports — npm run samples:remove-dakgg
+import {
+  SAMPLE_AGAGONGJU_MATCHES,
+  SAMPLE_AGAGONGJU_PLAYER,
+  SAMPLE_AGAGONGJU_USER_NUM,
+} from '@/mocks/sampleAgagongju'
+import {
+  SAMPLE_IYURANG_MATCHES,
+  SAMPLE_IYURANG_PLAYER,
+  SAMPLE_IYURANG_USER_NUM,
+} from '@/mocks/sampleIyurang'
+import {
+  SAMPLE_RIDAJUNGDOK_MATCHES,
+  SAMPLE_RIDAJUNGDOK_PLAYER,
+  SAMPLE_RIDAJUNGDOK_USER_NUM,
+} from '@/mocks/sampleRidajungdok'
+import {
+  SAMPLE_JEOLDAN_MATCHES,
+  SAMPLE_JEOLDAN_PLAYER,
+  SAMPLE_JEOLDAN_USER_NUM,
+} from '@/mocks/sampleJeoldan'
+// END TEST SAMPLE(dak.gg) imports
 import { DEMO_LATEST_SEASON } from '@/mocks/seasonHistory'
 export type { DemoSeasonRecord, DemoSeasonSnapshot } from '@/mocks/seasonHistory'
 export {
@@ -20,6 +48,8 @@ import { MOCK_RANKING_ENTRIES } from '@/mocks/rankings'
 import type { MatchSummary, MatchSummaryDTO, Paginated } from '@/types/match'
 import type { PlayerStats, PlayerStatsDTO, PlayerSummary } from '@/types/player'
 import { localizeCharacter, localizeTier } from '@/utils/gameLabels'
+import { selectAnalysisMatches, getAnalysisBasisLabel, type AnalysisScope } from '@/utils/analysisAggregation'
+import { buildRpTrendPointsFromMatches } from '@/utils/rpTrendPoints'
 import { toMatchSummaryDTO, toStatsDTO } from '@/utils/dto'
 
 interface PlayerRecord {
@@ -43,6 +73,32 @@ interface MatchesFile {
 const playersFile = playersData as PlayersFile
 const matchesFile = matchesData as MatchesFile
 
+// TEST SAMPLE(dak.gg) — START inject
+const DAKGG_TEST_SAMPLES = [
+  { userNum: SAMPLE_JEOLDAN_USER_NUM, player: SAMPLE_JEOLDAN_PLAYER, matches: SAMPLE_JEOLDAN_MATCHES },
+  { userNum: SAMPLE_IYURANG_USER_NUM, player: SAMPLE_IYURANG_PLAYER, matches: SAMPLE_IYURANG_MATCHES },
+  { userNum: SAMPLE_AGAGONGJU_USER_NUM, player: SAMPLE_AGAGONGJU_PLAYER, matches: SAMPLE_AGAGONGJU_MATCHES },
+  { userNum: SAMPLE_RIDAJUNGDOK_USER_NUM, player: SAMPLE_RIDAJUNGDOK_PLAYER, matches: SAMPLE_RIDAJUNGDOK_MATCHES },
+] as const
+
+for (const sample of DAKGG_TEST_SAMPLES) {
+  if (!playersFile.players.some((p) => p.userNum === sample.userNum)) {
+    playersFile.players.push(sample.player)
+    matchesFile.matches.push(...sample.matches)
+  }
+}
+// END TEST SAMPLE(dak.gg) inject
+
+// TEST SAMPLE — START equipment-preview apply
+for (const match of matchesFile.matches) {
+  const preview =
+    MATCH_EQUIPMENT_PREVIEW_OVERRIDES[match.matchId] ?? match.equipmentPreview
+  if (preview) {
+    match.equipmentPreview = preview
+  }
+}
+// END TEST SAMPLE equipment-preview
+
 function toSummary(p: PlayerRecord): PlayerSummary {
   return {
     userNum: p.userNum,
@@ -65,6 +121,18 @@ function sortedMatchesForUser(userNum: number): MatchSummary[] {
 
 function sortedMatchesForUserSeason(userNum: number, seasonNumber: number): MatchSummary[] {
   return sortedMatchesForUser(userNum).filter((m) => matchSeasonNumber(m) === seasonNumber)
+}
+
+function sortedAnalysisMatchesForUserSeason(
+  userNum: number,
+  seasonNumber: number,
+  scope: AnalysisScope = 'recent20',
+): MatchSummary[] {
+  return selectAnalysisMatches(
+    sortedMatchesForUserSeason(userNum, seasonNumber),
+    seasonNumber,
+    scope,
+  )
 }
 
 export function getSamplePlayerNicknames(): string[] {
@@ -232,6 +300,18 @@ export function getDemoPlayerCharacterReportsForSeason(
   return localizeCharacterReports(buildCharacterAnalysisReports(playerMatches))
 }
 
+export function getDemoPlayerAnalysisCharacterReportsForSeason(
+  nickname: string,
+  seasonNumber: number,
+  scope: AnalysisScope = 'recent20',
+): CharacterAnalysisReport[] {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return []
+
+  const playerMatches = sortedAnalysisMatchesForUserSeason(player.userNum, seasonNumber, scope)
+  return localizeCharacterReports(buildCharacterAnalysisReports(playerMatches))
+}
+
 function localizeCharacterReports(reports: CharacterAnalysisReport[]): CharacterAnalysisReport[] {
   return reports.map((report) => ({
     ...report,
@@ -242,12 +322,13 @@ function localizeCharacterReports(reports: CharacterAnalysisReport[]): Character
 export function getDemoPlayerAnalysisReportForSeason(
   nickname: string,
   seasonNumber: number,
+  scope: AnalysisScope = 'recent20',
 ): PlayerAnalysisReport | null {
   const player = getMockPlayerSummaryByNickname(nickname)
   if (!player) return null
 
   const populationMetrics = buildPopulationMetricsFromMatches(getAllDemoMatchesForAnalysis())
-  const playerMatches = sortedMatchesForUserSeason(player.userNum, seasonNumber)
+  const playerMatches = sortedAnalysisMatchesForUserSeason(player.userNum, seasonNumber, scope)
 
   return buildPlayerAnalysisReport({
     nickname: player.nickname,
@@ -257,6 +338,77 @@ export function getDemoPlayerAnalysisReportForSeason(
   })
 }
 
+function buildPopulationMatchSetsForSeason(
+  seasonNumber: number,
+  scope: AnalysisScope,
+): MatchSummary[][] {
+  return playersFile.players
+    .map((player) => sortedAnalysisMatchesForUserSeason(player.userNum, seasonNumber, scope))
+    .filter((matches) => matches.length >= 3)
+}
+
+function buildTierPopulationMatchSetsForSeason(
+  tier: string,
+  seasonNumber: number,
+  scope: AnalysisScope,
+): MatchSummary[][] {
+  const tierHead = tier.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
+  return playersFile.players
+    .filter((player) => player.tier.toLowerCase().startsWith(tierHead))
+    .map((player) => sortedAnalysisMatchesForUserSeason(player.userNum, seasonNumber, scope))
+    .filter((matches) => matches.length >= 3)
+}
+
+export function getDemoPlayStylePopulationMatchSets(
+  seasonNumber: number,
+  scope: AnalysisScope = 'recent20',
+): MatchSummary[][] {
+  return buildPopulationMatchSetsForSeason(seasonNumber, scope)
+}
+
+export function getDemoPlayStyleTierPopulationMatchSets(
+  nickname: string,
+  seasonNumber: number,
+  scope: AnalysisScope = 'recent20',
+): MatchSummary[][] {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return []
+  return buildTierPopulationMatchSetsForSeason(player.tier, seasonNumber, scope)
+}
+
+export function getDemoAnalysisPopulationMatches(): MatchSummary[] {
+  return getAllDemoMatchesForAnalysis()
+}
+
+export function getDemoPlayStyleAnalysisForSeason(
+  nickname: string,
+  seasonNumber: number,
+  scope: AnalysisScope = 'recent20',
+): PlayerPlayStyleAnalysis | null {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return null
+
+  const playerMatches = sortedAnalysisMatchesForUserSeason(player.userNum, seasonNumber, scope)
+
+  return buildPlayStyleAnalysis({
+    playerMatches,
+    populationMatchSets: buildPopulationMatchSetsForSeason(seasonNumber, scope),
+    tierPopulationMatchSets: buildTierPopulationMatchSetsForSeason(player.tier, seasonNumber, scope),
+    basisLabel: getAnalysisBasisLabel(seasonNumber, scope),
+  })
+}
+
+export function getDemoAnalysisMatchesForSeason(
+  nickname: string,
+  seasonNumber: number,
+  scope: AnalysisScope = 'recent20',
+): MatchSummary[] {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return []
+
+  return sortedAnalysisMatchesForUserSeason(player.userNum, seasonNumber, scope)
+}
+
 export function getDemoPlayerRpTrendForSeason(
   nickname: string,
   seasonNumber: number,
@@ -264,15 +416,10 @@ export function getDemoPlayerRpTrendForSeason(
   const player = getMockPlayerSummaryByNickname(nickname)
   if (!player) return []
 
-  return sortedMatchesForUserSeason(player.userNum, seasonNumber)
-    .filter((m): m is MatchSummary & { rpAfter: number } => m.rpAfter != null)
-    .sort((a, b) => new Date(a.gameStartedAt).getTime() - new Date(b.gameStartedAt).getTime())
-    .map((m) => ({
-      matchId: m.matchId,
-      dateLabel: shortDateLabel(m.gameStartedAt),
-      rpAfter: m.rpAfter,
-      rpDelta: m.rpDelta,
-    }))
+  return buildRpTrendPointsFromMatches(
+    sortedMatchesForUserSeason(player.userNum, seasonNumber),
+    shortDateLabel,
+  )
 }
 
 export interface DemoRankingPosition {
@@ -283,9 +430,108 @@ export interface DemoRankingPosition {
 export interface RpTrendPoint {
   matchId: string
   dateLabel: string
+  /** 해당 일자 마무리(마지막 경기) RP */
   rpAfter: number
   rpDelta?: number
+  /** 같은 날 최저 RP — 툴팁용 */
+  dayMinRp?: number
+  /** 같은 날 최고 RP — 툴팁용 */
+  dayMaxRp?: number
+  gamesPlayed?: number
 }
+
+export interface DemoPlayerCompactSummary {
+  averageTeamKills: number | null
+  winRate: number | null
+  averagePlacement: number | null
+  averageDamageToPlayers: number | null
+  averageVisionScore: number | null
+  averageAnimalKills: number | null
+  sampleSize: number
+}
+
+export interface DemoPlayerTopSummary extends DemoPlayerCompactSummary {
+  currentRp: number | null
+  tierLabel: string
+  rpTrendPoints: RpTrendPoint[]
+}
+
+function averageOptional(values: number[]): number | null {
+  if (values.length === 0) return null
+  const sum = values.reduce((acc, value) => acc + value, 0)
+  const avg = sum / values.length
+  if (!Number.isFinite(avg)) return null
+  return Math.round(avg * 100) / 100
+}
+
+function collectOptionalField(
+  matches: MatchSummary[],
+  pick: (match: MatchSummary) => number | undefined,
+): number | null {
+  const values = matches
+    .map(pick)
+    .filter((value): value is number => value != null && Number.isFinite(value))
+  return averageOptional(values)
+}
+
+export function getDemoPlayerCompactSummary(
+  nickname: string,
+  seasonNumber: number = DEMO_LATEST_SEASON,
+): DemoPlayerCompactSummary | null {
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!player) return null
+
+  const matches = sortedMatchesForUserSeason(player.userNum, seasonNumber)
+  const wins = matches.filter((m) => m.victory).length
+  const winRate =
+    matches.length > 0 ? Math.round((wins / matches.length) * 1000) / 10 : null
+
+  return {
+    averageTeamKills: collectOptionalField(matches, (m) => m.teamKills),
+    winRate,
+    averagePlacement: averageOptional(matches.map((m) => m.placement)),
+    averageDamageToPlayers: collectOptionalField(matches, (m) => m.damageToPlayers),
+    averageVisionScore: collectOptionalField(matches, (m) => m.visionScore),
+    averageAnimalKills: collectOptionalField(matches, (m) => m.animalKills),
+    sampleSize: matches.length,
+  }
+}
+
+export function getDemoPlayerTopSummary(
+  nickname: string,
+  seasonNumber: number = DEMO_LATEST_SEASON,
+): DemoPlayerTopSummary | null {
+  const compact = getDemoPlayerCompactSummary(nickname, seasonNumber)
+  const player = getMockPlayerSummaryByNickname(nickname)
+  if (!compact || !player) return null
+
+  const rpTrendPoints = getDemoPlayerRpTrendForSeason(nickname, seasonNumber)
+  const stats = buildMockStatsForUser(player.userNum)
+  const currentRp = rpTrendPoints.at(-1)?.rpAfter ?? stats?.mmr ?? null
+
+  return {
+    ...compact,
+    currentRp,
+    tierLabel: player.tier,
+    rpTrendPoints,
+  }
+}
+
+export function getDemoPlayerRoleSummary(
+  nickname: string,
+  seasonNumber: number = DEMO_LATEST_SEASON,
+  scope: AnalysisScope = 'recent20',
+): RoleSummaryResult | null {
+  const matches = getDemoAnalysisMatchesForSeason(nickname, seasonNumber, scope)
+  if (matches.length === 0) {
+    const player = getMockPlayerSummaryByNickname(nickname)
+    if (!player) return null
+    return buildRoleSummary([])
+  }
+  return buildRoleSummary(matches)
+}
+
+export type { RoleSummaryResult }
 
 export interface DemoMatchDetail {
   match: MatchSummary
@@ -336,15 +582,7 @@ export function getDemoPlayerRpTrend(nickname: string): RpTrendPoint[] {
   const player = getMockPlayerSummaryByNickname(nickname)
   if (!player) return []
 
-  return sortedMatchesForUser(player.userNum)
-    .filter((m): m is MatchSummary & { rpAfter: number } => m.rpAfter != null)
-    .sort((a, b) => new Date(a.gameStartedAt).getTime() - new Date(b.gameStartedAt).getTime())
-    .map((m) => ({
-      matchId: m.matchId,
-      dateLabel: shortDateLabel(m.gameStartedAt),
-      rpAfter: m.rpAfter,
-      rpDelta: m.rpDelta,
-    }))
+  return buildRpTrendPointsFromMatches(sortedMatchesForUser(player.userNum), shortDateLabel)
 }
 
 export function getDemoMatchDetail(matchId: string): DemoMatchDetail | null {

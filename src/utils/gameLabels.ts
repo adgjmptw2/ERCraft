@@ -1,3 +1,5 @@
+import { localizeCharacterName } from '@/utils/characterMap'
+
 const TIER_EN_TO_KO: Record<string, string> = {
   iron: '아이언',
   bronze: '브론즈',
@@ -18,25 +20,6 @@ const ROMAN_TO_KO: Record<string, string> = {
   IV: '4',
 }
 
-const CHARACTER_EN_TO_KO: Record<string, string> = {
-  Yuki: '유키',
-  Adela: '아델라',
-  Hyejin: '혜진',
-  'Li Dailin': '린 다일린',
-  Sissela: '시셀라',
-  Hyunwoo: '현우',
-  Nadine: '나딘',
-  Jenny: '제니',
-  Chiara: '키아라',
-  William: '윌리엄',
-  Nathapon: '나타폰',
-  Aya: '아야',
-  Elena: '엘레나',
-  Luke: '루크',
-  Isol: '아이솔',
-  Emma: '엠마',
-}
-
 export function localizeTier(tier: string): string {
   const trimmed = tier.trim()
   if (!trimmed) return '—'
@@ -54,10 +37,11 @@ export function localizeTier(tier: string): string {
 }
 
 export function localizeCharacter(name: string): string {
-  const trimmed = name.trim()
-  return CHARACTER_EN_TO_KO[trimmed] ?? trimmed
+  return localizeCharacterName(name)
 }
 
 export function tierToken(tier: string): string {
   return localizeTier(tier).split(/\s+/)[0]?.toLowerCase() ?? ''
 }
+
+export { getAllCharacterKoNames } from '@/utils/characterMap'

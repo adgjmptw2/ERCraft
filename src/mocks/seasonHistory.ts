@@ -1,10 +1,26 @@
 // MOCK — 실 API 붙기 전
 
 import playersData from '@/mocks/players.json'
-import { localizeTier } from '@/utils/gameLabels'
+// TEST SAMPLE(dak.gg) — START imports — npm run samples:remove-dakgg
+import {
+  SAMPLE_AGAGONGJU_FINAL_RANK,
+  SAMPLE_AGAGONGJU_USER_NUM,
+} from '@/mocks/sampleAgagongju'
+import { SAMPLE_IYURANG_FINAL_RANK, SAMPLE_IYURANG_USER_NUM } from '@/mocks/sampleIyurang'
+import { SAMPLE_JEOLDAN_FINAL_RANK, SAMPLE_JEOLDAN_USER_NUM } from '@/mocks/sampleJeoldan'
+import {
+  SAMPLE_RIDAJUNGDOK_FINAL_RANK,
+  SAMPLE_RIDAJUNGDOK_USER_NUM,
+} from '@/mocks/sampleRidajungdok'
+// END TEST SAMPLE(dak.gg) imports
+import type { RankDivision, RankTierName, SeasonRank } from '@/types/rank'
+import { DIVISION_RANK_TIERS } from '@/types/rank'
+import { formatTierDetail, seasonRankToSummaryTier } from '@/utils/rankTier'
 
 export interface DemoSeasonRecord {
   seasonNumber: number
+  rank: SeasonRank
+  /** 뱃지/요약용 — formatTierBadge(rank) */
   tier: string
   wins: number
   losses: number
@@ -22,6 +38,7 @@ export interface DemoSeasonSnapshot extends DemoSeasonRecord {
   winRate: number
   kdaString: string
   avgSurvivalLabel: string
+  tierDetail: string
 }
 
 interface PlayerRecord {
@@ -35,19 +52,33 @@ interface PlayersFile {
 
 const playersFile = playersData as PlayersFile
 
-const MID_TIERS = [
-  '아이언 2',
-  '브론즈 3',
-  '브론즈 1',
-  '실버 4',
-  '실버 2',
-  '골드 3',
-  '골드 1',
-  '플래티넘 4',
-  '플래티넘 2',
-  '다이아몬드 4',
-  '다이아몬드 2',
-]
+export const DEMO_LATEST_SEASON = 11
+
+const MINE_USER_NUM = 920517
+const ETERNITY_USER_NUM = 847291
+const DEMIGOD_USER_NUM = 301882
+
+const MINE_SEASON_RANKS: Partial<Record<number, SeasonRank>> = {
+  5: { tier: '실버', division: 4, rp: 320 },
+  6: { tier: '실버', division: 2, rp: 580 },
+  7: { tier: '브론즈', division: 3, rp: 210 },
+  8: { tier: '다이아몬드', division: 2, rp: 1820 },
+  9: { tier: '골드', division: 3, rp: 740 },
+  10: { tier: '플래티넘', division: 2, rp: 1240 },
+  11: { tier: '미스릴', rp: 7650 },
+}
+
+const DIVISION_RP_BASE: Record<DivisionRankTier, number> = {
+  아이언: 120,
+  브론즈: 350,
+  실버: 550,
+  골드: 850,
+  플래티넘: 1150,
+  다이아몬드: 1600,
+  메테오라이트: 2100,
+}
+
+type DivisionRankTier = (typeof DIVISION_RANK_TIERS)[number]
 
 function pseudoRandom(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453
@@ -58,11 +89,87 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
-function buildSeasonRecord(
-  userNum: number,
-  seasonNumber: number,
-  tier: string,
-): DemoSeasonRecord {
+function startSeasonForUser(userNum: number): number {
+  return 3 + (userNum % 4)
+}
+
+function mithrilRank(seed: number, band: 'low' | 'mid' | 'high'): SeasonRank {
+  const ranges = {
+    low: [7400, 7800] as const,
+    mid: [7800, 8200] as const,
+    high: [8200, 8299] as const,
+  }
+  const [min, max] = ranges[band]
+  const rp = Math.floor(min + pseudoRandom(seed) * (max - min + 1))
+  return { tier: '미스릴', rp }
+}
+
+function randomDivisionRank(seed: number): SeasonRank {
+  const tierIndex = Math.floor(pseudoRandom(seed) * DIVISION_RANK_TIERS.length)
+  const tier = DIVISION_RANK_TIERS[tierIndex] ?? '골드'
+  const division = (Math.floor(pseudoRandom(seed + 1) * 4) + 1) as RankDivision
+  const base = DIVISION_RP_BASE[tier as DivisionRankTier]
+  const rp = base + Math.floor(pseudoRandom(seed + 2) * 450)
+  return { tier, division, rp }
+}
+
+function finalRankForUser(userNum: number): SeasonRank {
+  const seed = userNum * 23 + DEMO_LATEST_SEASON
+  const roll = pseudoRandom(seed)
+
+  if (roll > 0.82) return mithrilRank(seed + 1, 'high')
+  if (roll > 0.65) return mithrilRank(seed + 2, 'mid')
+  if (roll > 0.48) return mithrilRank(seed + 3, 'low')
+  if (roll > 0.32) {
+    return {
+      tier: '메테오라이트',
+      division: (Math.floor(pseudoRandom(seed + 4) * 4) + 1) as RankDivision,
+      rp: DIVISION_RP_BASE['메테오라이트'] + Math.floor(pseudoRandom(seed + 5) * 400),
+    }
+  }
+
+  return randomDivisionRank(seed + 6)
+}
+
+function rankForSeason(userNum: number, seasonNumber: number, isFinal: boolean): SeasonRank {
+  const mineOverride = MINE_SEASON_RANKS[seasonNumber]
+  if (userNum === MINE_USER_NUM && mineOverride) return mineOverride
+
+  // TEST SAMPLE(dak.gg) — START tier
+  if (isFinal && userNum === SAMPLE_JEOLDAN_USER_NUM) return SAMPLE_JEOLDAN_FINAL_RANK
+  if (isFinal && userNum === SAMPLE_IYURANG_USER_NUM) return SAMPLE_IYURANG_FINAL_RANK
+  if (isFinal && userNum === SAMPLE_AGAGONGJU_USER_NUM) return SAMPLE_AGAGONGJU_FINAL_RANK
+  if (isFinal && userNum === SAMPLE_RIDAJUNGDOK_USER_NUM) return SAMPLE_RIDAJUNGDOK_FINAL_RANK
+  // END TEST SAMPLE(dak.gg) tier
+
+  if (isFinal && userNum === ETERNITY_USER_NUM) {
+    // rp >= 8300 && rank <= 200
+    return { tier: '이터니티', rp: 9340, rank: 34 }
+  }
+
+  if (isFinal && userNum === DEMIGOD_USER_NUM) {
+    // rp >= 8300 && rank 201~700
+    return { tier: '데미갓', rp: 8720, rank: 523 }
+  }
+
+  if (isFinal) return finalRankForUser(userNum)
+
+  const seed = userNum * 31 + seasonNumber * 17
+  const roll = pseudoRandom(seed + 99)
+
+  if (roll > 0.88 && seasonNumber >= 9) {
+    const tier = '메테오라이트' satisfies RankTierName
+    return {
+      tier,
+      division: (Math.floor(pseudoRandom(seed) * 4) + 1) as RankDivision,
+      rp: DIVISION_RP_BASE[tier] + Math.floor(pseudoRandom(seed + 3) * 500),
+    }
+  }
+
+  return randomDivisionRank(seed)
+}
+
+function buildSeasonRecord(userNum: number, seasonNumber: number, rank: SeasonRank): DemoSeasonRecord {
   const seed = userNum * 31 + seasonNumber * 17
   const games = 18 + Math.floor(pseudoRandom(seed) * 72)
   const winRate = 0.32 + pseudoRandom(seed + 1) * 0.36
@@ -78,7 +185,8 @@ function buildSeasonRecord(
 
   return {
     seasonNumber,
-    tier,
+    rank,
+    tier: seasonRankToSummaryTier(rank),
     wins,
     losses,
     avgPlacement,
@@ -91,19 +199,14 @@ function buildSeasonRecord(
   }
 }
 
-function historyForPlayer(userNum: number, currentTier: string): DemoSeasonRecord[] {
-  const startSeason = 3 + (userNum % 4)
-  const finalTier = localizeTier(currentTier)
-  const span = 10 - startSeason + 1
+function historyForPlayer(userNum: number): DemoSeasonRecord[] {
+  const startSeason = startSeasonForUser(userNum)
   const records: DemoSeasonRecord[] = []
 
-  for (let i = 0; i < span; i++) {
-    const seasonNumber = startSeason + i
-    const isFinal = seasonNumber === 10
-    const tier = isFinal
-      ? finalTier
-      : MID_TIERS[Math.floor(pseudoRandom(userNum * 7 + seasonNumber) * MID_TIERS.length)]!
-    records.push(buildSeasonRecord(userNum, seasonNumber, tier))
+  for (let seasonNumber = startSeason; seasonNumber <= DEMO_LATEST_SEASON; seasonNumber++) {
+    const isFinal = seasonNumber === DEMO_LATEST_SEASON
+    const rank = rankForSeason(userNum, seasonNumber, isFinal)
+    records.push(buildSeasonRecord(userNum, seasonNumber, rank))
   }
 
   return records
@@ -118,7 +221,7 @@ function getHistory(userNum: number): DemoSeasonRecord[] {
   const player = playersFile.players.find((p) => p.userNum === userNum)
   if (!player) return []
 
-  const history = historyForPlayer(userNum, player.tier)
+  const history = historyForPlayer(userNum)
   seasonHistoryCache.set(userNum, history)
   return history
 }
@@ -145,7 +248,6 @@ export function getDemoSeasonSnapshot(
     winRate,
     kdaString: record.kda.toFixed(2),
     avgSurvivalLabel: `${minutes}분 ${seconds}초`,
+    tierDetail: formatTierDetail(record.rank),
   }
 }
-
-export const DEMO_LATEST_SEASON = 10

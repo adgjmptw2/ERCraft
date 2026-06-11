@@ -28,10 +28,12 @@ export function RecentMatchList({
   onLoadMore,
 }: RecentMatchListProps) {
   return (
-    <SurfaceCard padding="lg" className="flex h-full min-h-0 flex-col gap-5">
+    <SurfaceCard
+      padding="lg"
+      className="flex h-full min-h-0 min-w-0 flex-col gap-5 px-2 py-5 sm:px-5 md:px-6"
+    >
       <SectionHeader
         title="최근 매치"
-        description="행을 눌러 샘플 매치 상세를 확인합니다."
         badge={matchesSource ? <SourceBadge source={matchesSource} /> : undefined}
       />
       {isPending ? (
@@ -49,7 +51,7 @@ export function RecentMatchList({
         <EmptyState title="기록된 전적이 없습니다" />
       ) : (
         <>
-          <ul className="flex flex-col gap-2.5">
+          <ul className="divide-border/60 flex min-w-0 flex-col divide-y [&>li]:min-w-0 [&>li]:py-1.5">
             {matches.map((m) => (
               <MatchRow key={m.matchId} match={m} variant="record" />
             ))}

@@ -11,8 +11,16 @@ import {
 import {
   DEMO_LATEST_SEASON,
   getDemoPlayerAnalysisReportForSeason,
+  getDemoPlayerAnalysisCharacterReportsForSeason,
+  getDemoAnalysisMatchesForSeason,
+  getDemoAnalysisPopulationMatches,
+  getDemoPlayStylePopulationMatchSets,
+  getDemoPlayStyleTierPopulationMatchSets,
   getDemoPlayerCharacterReportsForSeason,
+  getDemoPlayerCompactSummary,
+  getDemoPlayStyleAnalysisForSeason,
   getDemoPlayerRankingPosition,
+  getDemoPlayerRoleSummary,
   getDemoPlayerRpTrendForSeason,
   getDemoPlayerSeasonHistory,
   getDemoSeasonSnapshot,
@@ -26,17 +34,20 @@ import {
 import { useMatchDTOHistory } from '@/hooks/useMatchDTOHistory'
 import { usePlayerStatsDTO } from '@/hooks/usePlayerStatsDTO'
 import { usePlayerSummary } from '@/hooks/usePlayerSummary'
+import { getAnalysisBasisLabel, type AnalysisScope } from '@/utils/analysisAggregation'
 
 export function ProfilePage() {
   const { nickname: nicknameParam } = useParams()
   const nickname = nicknameParam ? decodeURIComponent(nicknameParam) : ''
   const [activeTab, setActiveTab] = useState<ProfileTabId>('records')
   const [selectedSeason, setSelectedSeason] = useState(DEMO_LATEST_SEASON)
+  const [analysisScope, setAnalysisScope] = useState<AnalysisScope>('recent20')
 
   const summaryQuery = usePlayerSummary(nickname)
   const userNum = summaryQuery.data?.userNum ?? 0
-  const statsQuery = usePlayerStatsDTO(userNum, summaryQuery.data?.tier)
-  const matchesQuery = useMatchDTOHistory(userNum)
+  const statsQuery = usePlayerStatsDTO(nickname, summaryQuery.data?.tier)
+  // 기존과 동일하게 summary 확인 후 매치 조회
+  const matchesQuery = useMatchDTOHistory(summaryQuery.data ? nickname : '')
 
   const seasonHistory = useMemo(
     () => (userNum > 0 ? getDemoPlayerSeasonHistory(userNum) : []),
@@ -56,17 +67,45 @@ export function ProfilePage() {
     [summaryQuery.data, selectedSeason],
   )
 
+  const showAnalysisScopeToggle = selectedSeason >= DEMO_LATEST_SEASON
+
   const analysisReport = useMemo(
     () =>
       summaryQuery.data
-        ? getDemoPlayerAnalysisReportForSeason(summaryQuery.data.nickname, selectedSeason)
+        ? getDemoPlayerAnalysisReportForSeason(
+            summaryQuery.data.nickname,
+            selectedSeason,
+            analysisScope,
+          )
         : null,
-    [summaryQuery.data, selectedSeason],
+    [summaryQuery.data, selectedSeason, analysisScope],
   )
+
+  const analysisCharacterReports = useMemo(
+    () =>
+      summaryQuery.data
+        ? getDemoPlayerAnalysisCharacterReportsForSeason(
+            summaryQuery.data.nickname,
+            selectedSeason,
+            analysisScope,
+          )
+        : [],
+    [summaryQuery.data, selectedSeason, analysisScope],
+  )
+
+  const analysisBasisLabel = getAnalysisBasisLabel(selectedSeason, analysisScope)
 
   const rankingPosition = useMemo(
     () => (summaryQuery.data ? getDemoPlayerRankingPosition(summaryQuery.data.nickname) : null),
     [summaryQuery.data],
+  )
+
+  const compactSummary = useMemo(
+    () =>
+      summaryQuery.data
+        ? getDemoPlayerCompactSummary(summaryQuery.data.nickname, selectedSeason)
+        : null,
+    [summaryQuery.data, selectedSeason],
   )
 
   const rpTrend = useMemo(
@@ -75,6 +114,61 @@ export function ProfilePage() {
         ? getDemoPlayerRpTrendForSeason(summaryQuery.data.nickname, selectedSeason)
         : [],
     [summaryQuery.data, selectedSeason],
+  )
+
+  const playStyleAnalysis = useMemo(
+    () =>
+      summaryQuery.data
+        ? getDemoPlayStyleAnalysisForSeason(
+            summaryQuery.data.nickname,
+            selectedSeason,
+            analysisScope,
+          )
+        : null,
+    [summaryQuery.data, selectedSeason, analysisScope],
+  )
+
+  const analysisMatches = useMemo(
+    () =>
+      summaryQuery.data
+        ? getDemoAnalysisMatchesForSeason(
+            summaryQuery.data.nickname,
+            selectedSeason,
+            analysisScope,
+          )
+        : [],
+    [summaryQuery.data, selectedSeason, analysisScope],
+  )
+
+  const populationMatchSets = useMemo(
+    () => getDemoPlayStylePopulationMatchSets(selectedSeason, analysisScope),
+    [selectedSeason, analysisScope],
+  )
+
+  const tierPopulationMatchSets = useMemo(
+    () =>
+      summaryQuery.data
+        ? getDemoPlayStyleTierPopulationMatchSets(
+            summaryQuery.data.nickname,
+            selectedSeason,
+            analysisScope,
+          )
+        : [],
+    [summaryQuery.data, selectedSeason, analysisScope],
+  )
+
+  const populationMatches = useMemo(() => getDemoAnalysisPopulationMatches(), [])
+
+  const roleSummary = useMemo(
+    () =>
+      summaryQuery.data
+        ? getDemoPlayerRoleSummary(
+            summaryQuery.data.nickname,
+            selectedSeason,
+            analysisScope,
+          )
+        : null,
+    [summaryQuery.data, selectedSeason, analysisScope],
   )
 
   const matchItems = useMemo(() => {
@@ -145,15 +239,16 @@ export function ProfilePage() {
   const rp = statsQuery.data?.data?.mmr
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
+    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
       <ProfileHero
         summary={summary}
         rankingPosition={rankingPosition}
         seasons={seasonHistory}
         selectedSeason={selectedSeason}
         selectedTier={seasonSnapshot?.tier ?? summary.tier}
+        tierDetail={seasonSnapshot?.tierDetail}
         onSeasonChange={setSelectedSeason}
-        rp={rp}
+        rp={seasonSnapshot?.rank.rp ?? rp}
       />
 
       <ProfileTabNav activeTab={activeTab} onTabChange={setActiveTab} />
@@ -163,6 +258,9 @@ export function ProfilePage() {
           seasonSnapshot ? (
             <ProfileRecordsTab
               seasonSnapshot={seasonSnapshot}
+              rpTrend={rpTrend}
+              compactSummary={compactSummary}
+              roleSummary={roleSummary}
               characterReports={characterReports}
               userNum={userNum}
               matchItems={matchItems}
@@ -179,13 +277,23 @@ export function ProfilePage() {
           ) : (
             <EmptyState title="해당 시즌 데이터가 없습니다" />
           )
-        ) : (
+        ) : seasonSnapshot ? (
           <ProfileAnalysisTab
+            nickname={summary.nickname}
             analysisReport={analysisReport}
-            characterReports={characterReports}
-            rpTrend={rpTrend}
-            seasonNumber={selectedSeason}
+            analysisCharacterReports={analysisCharacterReports}
+            analysisMatches={analysisMatches}
+            populationMatchSets={populationMatchSets}
+            tierPopulationMatchSets={tierPopulationMatchSets}
+            populationMatches={populationMatches}
+            analysisBasisLabel={analysisBasisLabel}
+            analysisScope={analysisScope}
+            onAnalysisScopeChange={setAnalysisScope}
+            showAnalysisScopeToggle={showAnalysisScopeToggle}
+            playStyleAnalysis={playStyleAnalysis}
           />
+        ) : (
+          <EmptyState title="해당 시즌 데이터가 없습니다" />
         )}
       </div>
     </div>

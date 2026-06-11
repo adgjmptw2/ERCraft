@@ -6,8 +6,8 @@ import { throwApiError } from '@/utils/apiError'
 import { toMatchSummaryDTO, toStatsDTO } from '@/utils/dto'
 
 const PAGE_SIZE = 10
-// 실 API 전까지 mock 집계용 — 서버 stats-dto로 옮길 예정
-const DTO_MATCH_FETCH_SIZE = 200
+// 통계 DTO 집계용 최근 경기 수 — 백엔드 pageSize 상한(50)과 동일하게 유지
+const DTO_MATCH_FETCH_SIZE = 50
 
 function wrap<T>(data: T): ApiResult<T> {
   return {
@@ -29,45 +29,45 @@ export async function fetchPlayerByNickname(
   return wrap(data)
 }
 
-export async function fetchPlayerStats(userNum: number): Promise<ApiResult<PlayerStats>> {
-  const data = await getClient().fetchPlayerStats(userNum)
+export async function fetchPlayerStats(nickname: string): Promise<ApiResult<PlayerStats>> {
+  const data = await getClient().fetchPlayerStats(nickname)
   return wrap(data)
 }
 
 export async function fetchMatchHistory(
-  userNum: number,
+  nickname: string,
   page: number,
 ): Promise<ApiResult<Paginated<MatchSummary>>> {
-  const data = await getClient().fetchMatchHistory(userNum, page, PAGE_SIZE)
+  const data = await getClient().fetchMatchHistory(nickname, page, PAGE_SIZE)
   return wrap(data)
 }
 
 export async function fetchPlayerStatsDTO(
-  userNum: number,
+  nickname: string,
   options?: { tier?: string },
 ): Promise<ApiResult<PlayerStatsDTO>> {
   const client = getClient()
-  const stats = await client.fetchPlayerStats(userNum)
+  const stats = await client.fetchPlayerStats(nickname)
 
   let tier = options?.tier
   if (!tier) {
-    // tier 미전달 시에만 userNum 조회
-    const summary = await client.fetchPlayerByUserNum(userNum)
+    // tier 미전달 시에만 요약 조회
+    const summary = await client.fetchPlayerByNickname(nickname)
     if (!summary) {
       throwApiError('PLAYER_NOT_FOUND', 'Player stats not found')
     }
     tier = summary.tier
   }
 
-  const history = await client.fetchMatchHistory(userNum, 0, DTO_MATCH_FETCH_SIZE)
+  const history = await client.fetchMatchHistory(nickname, 0, DTO_MATCH_FETCH_SIZE)
   return wrap(toStatsDTO(stats, history.items, tier))
 }
 
 export async function fetchMatchDTOHistory(
-  userNum: number,
+  nickname: string,
   page: number,
 ): Promise<ApiResult<Paginated<MatchSummaryDTO>>> {
-  const history = await getClient().fetchMatchHistory(userNum, page, PAGE_SIZE)
+  const history = await getClient().fetchMatchHistory(nickname, page, PAGE_SIZE)
   return wrap({
     ...history,
     items: history.items.map((m) => toMatchSummaryDTO(m)),

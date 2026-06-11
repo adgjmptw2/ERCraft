@@ -19,6 +19,25 @@ function normalizeLowerBetter(value: number, min: number, max: number): number {
   return ((max - value) / (max - min)) * 100
 }
 
+function resolveCharacterNum(matches: MatchSummary[]): number | undefined {
+  for (const match of matches) {
+    const num = match.characterNum
+    if (typeof num === 'number' && Number.isInteger(num) && num > 0) return num
+  }
+  return undefined
+}
+
+function averageMatchField(
+  matches: MatchSummary[],
+  pick: (match: MatchSummary) => number | undefined,
+): number | null {
+  const values = matches
+    .map(pick)
+    .filter((value): value is number => value != null && Number.isFinite(value))
+  if (values.length === 0) return null
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
 export function buildCharacterAnalysisSummary(
   characterName: string,
   matches: MatchSummary[],
@@ -29,11 +48,17 @@ export function buildCharacterAnalysisSummary(
   if (!metrics) return null
 
   return {
+    characterNum: resolveCharacterNum(matches),
     characterName,
     matchCount: metrics.matchCount,
     avgPlacement: metrics.avgPlacement,
     avgKills: metrics.avgKills,
     avgAssists: metrics.avgAssists,
+    avgTeamKills: averageMatchField(matches, (m) => m.teamKills),
+    avgDamageToPlayers: averageMatchField(
+      matches,
+      (m) => m.damageToPlayers ?? m.playerDamage,
+    ),
     kda: metrics.kda,
     top3Rate: metrics.top3Rate,
     winRate: metrics.winRate,

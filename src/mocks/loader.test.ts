@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildMockStatsForUser,
+  getDemoAnalysisMatchesForSeason,
   getDemoMatchDetail,
   getDemoPlayerAnalysisReport,
   getDemoPlayerCharacterReports,
   getDemoPlayerRankingPosition,
+  getDemoPlayerCompactSummary,
+  getDemoPlayerRoleSummary,
   getDemoPlayerRpTrend,
+  getDemoPlayerRpTrendForSeason,
   getDemoPlayerSeasonHistory,
+  getDemoPlayerTopSummary,
   getDemoSeasonSnapshot,
   getMockPlayerByUserNum,
   getMockPlayerSummaryByNickname,
@@ -69,7 +74,60 @@ describe('mock loader', () => {
     expect(samples).toContain('한강쐐기')
     expect(samples).toContain('마인')
     expect(samples).toContain('RustyMango')
-    expect(samples.length).toBe(6)
+    // TEST SAMPLE(dak.gg) — START nicknames — npm run samples:remove-dakgg
+    expect(samples).toContain('절단마술사')
+    expect(samples).toContain('이유랑')
+    expect(samples).toContain('아가공주')
+    expect(samples).toContain('리다중독')
+    expect(samples.length).toBe(10)
+    // END TEST SAMPLE(dak.gg) nicknames
+    if (!samples.includes('절단마술사')) {
+      expect(samples.length).toBe(6)
+    }
+  })
+
+  // TEST SAMPLE(dak.gg) — START tests — npm run samples:remove-dakgg
+  it('dak.gg 샘플 — 시즌 전체가 최근 20판보다 많다', () => {
+    const recent = getDemoAnalysisMatchesForSeason('절단마술사', 11, 'recent20')
+    const all = getDemoAnalysisMatchesForSeason('절단마술사', 11, 'seasonAll')
+    expect(recent).toHaveLength(20)
+    expect(all.length).toBeGreaterThan(20)
+  })
+
+  it('dak.gg 샘플 — equipmentPreview 오버라이드', () => {
+    const recent = getDemoAnalysisMatchesForSeason('절단마술사', 11, 'recent20')
+    const latest = recent[0]
+    expect(latest?.equipmentPreview?.weaponTypeSlug).toBe('weapons/weapon-group/shuriken')
+    expect(latest?.equipmentPreview?.mainTraitSlug).toBe('havoc/vampiric-bloodline')
+    expect(latest?.equipmentPreview?.subTraitSlug).toBe('fortification/fortification1')
+    expect(latest?.equipmentPreview?.tacticalSkillSlug).toBe('tactical-skills/blink')
+    expect(latest?.equipmentPreview?.gear?.weapon).toBe('weapons/shuriken/frost-venom-dart')
+    expect(latest?.equipmentPreview?.gearGrade?.leg).toBe('epic')
+  })
+
+  it('dak.gg 샘플 — 매치에 characterNum 포함', () => {
+    const all = getDemoAnalysisMatchesForSeason('절단마술사', 11, 'seasonAll')
+    expect(all.length).toBeGreaterThan(0)
+    expect(all.every((m) => typeof m.characterNum === 'number' && m.characterNum > 0)).toBe(true)
+    const emma = all.find((m) => m.characterName === 'Emma')
+    expect(emma?.characterNum).toBe(19)
+  })
+
+  it('getDemoPlayerRpTrendForSeason — 절단마술사 최근 7일', () => {
+    const trend = getDemoAnalysisMatchesForSeason('절단마술사', 11, 'seasonAll')
+    expect(trend.length).toBeGreaterThan(20)
+    const rpTrend = getDemoPlayerRpTrendForSeason('절단마술사', 11)
+    expect(rpTrend.length).toBeGreaterThanOrEqual(2)
+    expect(rpTrend.length).toBeLessThanOrEqual(7)
+    expect(rpTrend[0]?.dayMinRp).toBeDefined()
+    expect(rpTrend[0]?.dayMaxRp).toBeDefined()
+  })
+  // END TEST SAMPLE(dak.gg) tests
+
+  it('마인 — equipmentPreview 오버라이드 (demo-mine-001)', () => {
+    const matches = getDemoAnalysisMatchesForSeason('마인', 11, 'recent20')
+    const withGear = matches.find((m) => m.matchId === 'demo-mine-001')
+    expect(withGear?.equipmentPreview?.weaponTypeSlug).toBe('weapons/weapon-group/shuriken')
   })
 
   it('searchMockPlayersByNickname — 마인 검색', () => {
@@ -80,7 +138,7 @@ describe('mock loader', () => {
   })
 
   it('getMockPlayerSummaryByNickname — 마인', () => {
-    expect(getMockPlayerSummaryByNickname('마인')?.tier).toBe('플래티넘 2')
+    expect(getMockPlayerSummaryByNickname('마인')?.tier).toBe('미스릴')
   })
 
   it('getDemoPlayerAnalysisReport — 마인 report 생성', () => {
@@ -141,9 +199,10 @@ describe('mock loader', () => {
     expect(getDemoPlayerRankingPosition('없는닉네임xyz')).toBeNull()
   })
 
-  it('getDemoPlayerRpTrend — 마인 trend point', () => {
+  it('getDemoPlayerRpTrend — 마인 최근 7경기만', () => {
     const trend = getDemoPlayerRpTrend('마인')
     expect(trend.length).toBeGreaterThanOrEqual(2)
+    expect(trend.length).toBeLessThanOrEqual(7)
     expect(trend[0]?.rpAfter).toBeGreaterThan(0)
     expect(trend.at(-1)?.rpAfter).toBe(2420)
   })
@@ -161,11 +220,23 @@ describe('mock loader', () => {
     expect(detail?.nickname).toBe('마인')
   })
 
-  it('getDemoPlayerSeasonHistory — 마인 S10 포함', () => {
+  it('getDemoPlayerSeasonHistory — 마인 S10·S11 티어', () => {
     const history = getDemoPlayerSeasonHistory(920517)
     expect(history.length).toBeGreaterThan(0)
     expect(history.some((s) => s.seasonNumber === 10)).toBe(true)
+    expect(history.some((s) => s.seasonNumber === 11)).toBe(true)
     expect(history.find((s) => s.seasonNumber === 10)?.tier).toBe('플래티넘 2')
+    expect(history.find((s) => s.seasonNumber === 11)?.rank).toEqual({ tier: '미스릴', rp: 7650 })
+  })
+
+  it('getDemoPlayerSeasonHistory — 한강쐐기 S11 이터니티', () => {
+    const s11 = getDemoPlayerSeasonHistory(847291).find((s) => s.seasonNumber === 11)
+    expect(s11?.rank).toEqual({ tier: '이터니티', rp: 9340, rank: 34 })
+  })
+
+  it('getDemoPlayerSeasonHistory — 프로토콜Y S11 데미갓', () => {
+    const s11 = getDemoPlayerSeasonHistory(301882).find((s) => s.seasonNumber === 11)
+    expect(s11?.rank).toEqual({ tier: '데미갓', rp: 8720, rank: 523 })
   })
 
   it('getDemoSeasonSnapshot — 마인 S10', () => {
@@ -177,5 +248,55 @@ describe('mock loader', () => {
 
   it('getDemoMatchDetail — 없는 matchId null', () => {
     expect(getDemoMatchDetail('missing-match-id')).toBeNull()
+  })
+
+  it('getDemoPlayerCompactSummary — 마인 집계', () => {
+    const summary = getDemoPlayerCompactSummary('마인', 11)
+    expect(summary).not.toBeNull()
+    expect(summary?.sampleSize).toBe(12)
+    expect(summary?.averageTeamKills).toBeGreaterThan(0)
+    expect(summary?.winRate).toBeGreaterThan(0)
+    expect(summary?.averagePlacement).toBeGreaterThan(0)
+  })
+
+  it('getDemoPlayerCompactSummary — 없는 닉네임 null', () => {
+    expect(getDemoPlayerCompactSummary('없는닉네임xyz')).toBeNull()
+  })
+
+  it('getDemoPlayerCompactSummary — optional 필드 없는 플레이어 예외 없음', () => {
+    const summary = getDemoPlayerCompactSummary('한강쐐기', 11)
+    expect(summary).not.toBeNull()
+    expect(summary?.averageTeamKills).toBeNull()
+    expect(summary?.averageDamageToPlayers).toBeNull()
+  })
+
+  it('getDemoPlayerTopSummary — 마인 집계', () => {
+    const summary = getDemoPlayerTopSummary('마인', 11)
+    expect(summary).not.toBeNull()
+    expect(summary?.sampleSize).toBe(12)
+    expect(summary?.averageTeamKills).toBeGreaterThan(0)
+    expect(summary?.winRate).toBeGreaterThan(0)
+    expect(summary?.rpTrendPoints.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('getDemoPlayerTopSummary — 없는 닉네임 null', () => {
+    expect(getDemoPlayerTopSummary('없는닉네임xyz')).toBeNull()
+  })
+
+  it('getDemoPlayerTopSummary — optional 필드 없는 플레이어 예외 없음', () => {
+    const summary = getDemoPlayerTopSummary('한강쐐기', 11)
+    expect(summary).not.toBeNull()
+    expect(summary?.averageTeamKills).toBeNull()
+    expect(summary?.averageDamageToPlayers).toBeNull()
+  })
+
+  it('getDemoPlayerRoleSummary — 마인 주 역할군', () => {
+    const roles = getDemoPlayerRoleSummary('마인', 11)
+    expect(roles?.status).toBe('ready')
+    expect(roles?.primaryRole).toBe('딜러')
+  })
+
+  it('getDemoPlayerRoleSummary — 없는 닉네임 null', () => {
+    expect(getDemoPlayerRoleSummary('없는닉네임xyz')).toBeNull()
   })
 })

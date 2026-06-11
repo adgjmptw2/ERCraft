@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 
 import type { CharacterAnalysisReport } from '@/analysis/types'
+import { CharacterAvatar } from '@/components/shared'
 import {
   fineGradeColor,
-  getDemoCharacterAvgDamage,
   getDemoCharacterFineGrade,
   type CharacterFineGrade,
 } from '@/utils/characterGrade'
@@ -16,20 +16,7 @@ type CharacterStatsTabId = 'all'
 const TABS: { id: CharacterStatsTabId; label: string }[] = [{ id: 'all', label: '전체' }]
 
 const COLUMN_HEADER_CLASS =
-  'text-muted-foreground px-1 text-[9px] font-semibold uppercase tracking-wide'
-
-function CharacterAvatar({ name }: { name: string }) {
-  const initial = name.trim().charAt(0).toUpperCase() || '?'
-
-  return (
-    <div
-      className="bg-primary/10 text-primary border-primary/20 flex size-8 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold"
-      aria-hidden
-    >
-      {initial}
-    </div>
-  )
-}
+  'text-muted-foreground px-0.5 text-[9px] font-semibold uppercase tracking-wide'
 
 function winRateClass(rate: number): string {
   if (rate >= 60) return 'text-amber-400'
@@ -48,8 +35,14 @@ function FineGradeBadge({ grade }: { grade: CharacterFineGrade }) {
   )
 }
 
-function formatDamage(value: number): string {
-  return value.toLocaleString('ko-KR')
+function formatAvgStat(value: number | null, digits = 2): string {
+  if (value == null || Number.isNaN(value)) return '-'
+  return value.toFixed(digits)
+}
+
+function formatDamage(value: number | null): string {
+  if (value == null || Number.isNaN(value)) return '-'
+  return Math.round(value).toLocaleString('ko-KR')
 }
 
 export interface CharacterStatsProps {
@@ -107,11 +100,11 @@ export function CharacterStats({
           <div className="w-full overflow-x-hidden">
             <table className="w-full table-fixed">
               <colgroup>
-                <col style={{ width: '28%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '22%' }} />
+                <col style={{ width: '36%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '19%' }} />
                 <col style={{ width: '10%' }} />
               </colgroup>
               <thead>
@@ -136,21 +129,19 @@ export function CharacterStats({
               </thead>
               <tbody className="divide-border/60 divide-y">
                 {visible.map((char) => {
-                  const totalKills = Math.round(char.avgKills * char.matchCount * 10) / 10
                   const grade = getDemoCharacterFineGrade(userNum, seasonNumber, char.characterName)
-                  const avgDamage = getDemoCharacterAvgDamage(
-                    userNum,
-                    seasonNumber,
-                    char.characterName,
-                  )
 
                   return (
                     <tr key={char.characterName} className="hover:bg-muted/35 transition-colors">
-                      <td className="py-2 pr-1">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <CharacterAvatar name={char.characterName} />
-                          <div className="min-w-0">
-                            <p className="text-foreground truncate text-xs font-semibold">
+                      <td className="py-1.5 pr-0.5">
+                        <div className="flex min-w-0 items-center gap-1">
+                          <CharacterAvatar
+                            characterNum={char.characterNum}
+                            characterName={char.characterName}
+                            size="md"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-stat-value text-xs leading-tight font-semibold break-keep">
                               {char.characterName}
                             </p>
                             <p className="text-muted-foreground tabular-nums text-[10px]">
@@ -159,7 +150,7 @@ export function CharacterStats({
                           </div>
                         </div>
                       </td>
-                      <td className="px-1 py-2 text-right">
+                      <td className="px-0.5 py-1.5 text-right">
                         <p
                           className={cn(
                             'tabular-nums text-xs font-bold',
@@ -169,31 +160,31 @@ export function CharacterStats({
                           {char.winRate.toFixed(0)}%
                         </p>
                       </td>
-                      <td className="px-1 py-2 text-right">
-                        <p className="text-foreground tabular-nums text-xs font-semibold">
+                      <td className="px-0.5 py-1.5 text-right">
+                        <p className="text-stat-value tabular-nums text-xs font-semibold">
                           {char.kda.toFixed(2)}
                         </p>
                       </td>
-                      <td className="px-1 py-2 text-right">
+                      <td className="px-0.5 py-1.5 text-right">
                         <p className="tabular-nums text-[11px] leading-tight">
                           <span className="text-sky-400 text-[9px] font-semibold">TK</span>{' '}
-                          <span className="text-foreground font-semibold">
-                            {totalKills.toFixed(1)}
+                          <span className="text-stat-value font-semibold">
+                            {formatAvgStat(char.avgTeamKills)}
                           </span>
                         </p>
                         <p className="tabular-nums text-[11px] leading-tight">
                           <span className="text-muted-foreground text-[9px] font-semibold">K</span>{' '}
                           <span className="text-muted-foreground font-medium">
-                            {char.avgKills.toFixed(1)}
+                            {formatAvgStat(char.avgKills)}
                           </span>
                         </p>
                       </td>
-                      <td className="px-0.5 py-2 text-right">
-                        <p className="text-foreground tabular-nums text-[11px] font-semibold leading-none">
-                          {formatDamage(avgDamage)}
+                      <td className="px-0.5 py-1.5 text-right">
+                        <p className="text-stat-value tabular-nums text-[11px] font-semibold leading-none">
+                          {formatDamage(char.avgDamageToPlayers)}
                         </p>
                       </td>
-                      <td className="overflow-visible px-0 py-2 text-center">
+                      <td className="overflow-visible px-0 py-1.5 text-center">
                         <FineGradeBadge grade={grade} />
                       </td>
                     </tr>

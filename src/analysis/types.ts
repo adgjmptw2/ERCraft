@@ -65,11 +65,16 @@ export interface BuildPlayerAnalysisReportParams {
 export type CharacterAnalysisStatus = 'ok' | 'insufficient-sample'
 
 export interface CharacterAnalysisSummary {
+  characterNum?: number
   characterName: string
   matchCount: number
   avgPlacement: number
   avgKills: number
   avgAssists: number
+  /** 경기당 평균 팀 킬 */
+  avgTeamKills: number | null
+  /** 경기당 평균 플레이어 대상 딜량 */
+  avgDamageToPlayers: number | null
   kda: number
   top3Rate: number
   winRate: number

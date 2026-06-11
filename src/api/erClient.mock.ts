@@ -1,7 +1,6 @@
 import type { EternalReturnClient } from '@/api/erClient'
 import {
   buildMockStatsForUser,
-  getMockPlayerByUserNum,
   getMockPlayerSummaryByNickname,
   searchMockPlayersByNickname,
   sliceMockMatchHistory,
@@ -19,12 +18,9 @@ export class MockEternalReturnClient implements EternalReturnClient {
     return getMockPlayerSummaryByNickname(nickname) ?? null
   }
 
-  async fetchPlayerByUserNum(userNum: number): Promise<PlayerSummary | null> {
-    return getMockPlayerByUserNum(userNum) ?? null
-  }
-
-  async fetchPlayerStats(userNum: number): Promise<PlayerStats> {
-    const stats = buildMockStatsForUser(userNum)
+  async fetchPlayerStats(nickname: string): Promise<PlayerStats> {
+    const player = getMockPlayerSummaryByNickname(nickname)
+    const stats = player ? buildMockStatsForUser(player.userNum) : null
     if (!stats) {
       throwApiError('PLAYER_NOT_FOUND', 'Player stats not found')
     }
@@ -32,10 +28,14 @@ export class MockEternalReturnClient implements EternalReturnClient {
   }
 
   async fetchMatchHistory(
-    userNum: number,
+    nickname: string,
     page: number,
     pageSize: number,
   ): Promise<Paginated<MatchSummary>> {
-    return sliceMockMatchHistory(userNum, page, pageSize)
+    const player = getMockPlayerSummaryByNickname(nickname)
+    if (!player) {
+      return { items: [], page, pageSize, hasNext: false }
+    }
+    return sliceMockMatchHistory(player.userNum, page, pageSize)
   }
 }

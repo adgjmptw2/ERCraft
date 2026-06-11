@@ -1,8 +1,6 @@
-import { useMemo, useState } from 'react'
-
 import type { DemoSeasonRecord } from '@/mocks/seasonHistory'
+import { formatTierBadgeCompact, tierAccentColor } from '@/utils/rankTier'
 import { cn } from '@/lib/utils'
-import { tierToken } from '@/utils/gameLabels'
 
 export interface SeasonHistoryGridProps {
   seasons: DemoSeasonRecord[]
@@ -11,70 +9,24 @@ export interface SeasonHistoryGridProps {
   className?: string
 }
 
-const COLLAPSE_THRESHOLD = 6
-
-function tierAccentColor(tier: string): string {
-  const token = tierToken(tier)
-  if (token.startsWith('아이언')) return '#9ca3af'
-  if (token.startsWith('브론즈')) return '#cd7f32'
-  if (token.startsWith('실버')) return '#aaaaaa'
-  if (token.startsWith('골드')) return '#f0b429'
-  if (token.startsWith('플래티넘')) return '#4fc3b0'
-  if (token.startsWith('다이아')) return '#5b8dd9'
-  return '#9ca3af'
-}
-
-function compactTierLabel(tier: string): string {
-  const parts = tier.trim().split(/\s+/)
-  if (parts.length <= 1) return parts[0] ?? tier
-  return `${parts[0]}${parts[1]}`
-}
-
 export function SeasonHistoryGrid({
   seasons,
   selectedSeason,
   onSelect,
   className,
 }: SeasonHistoryGridProps) {
-  const needsCollapse = seasons.length > COLLAPSE_THRESHOLD
-  const [expanded, setExpanded] = useState(!needsCollapse)
-
-  const visibleSeasons = useMemo(() => {
-    if (expanded) return seasons
-
-    const recent = seasons.slice(-COLLAPSE_THRESHOLD)
-    if (recent.some((s) => s.seasonNumber === selectedSeason)) {
-      return recent
-    }
-
-    const selected = seasons.find((s) => s.seasonNumber === selectedSeason)
-    if (!selected) return recent
-
-    return [...recent.slice(1), selected].sort((a, b) => a.seasonNumber - b.seasonNumber)
-  }, [expanded, seasons, selectedSeason])
-
   if (seasons.length === 0) return null
 
   return (
     <div className={cn('min-w-0 space-y-2', className)}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-muted-foreground text-[10px] font-semibold tracking-widest uppercase">
-          시즌
-        </p>
-        {needsCollapse ? (
-          <button
-            type="button"
-            className="text-primary hover:text-primary/80 text-[10px] font-medium underline-offset-2 hover:underline"
-            onClick={() => setExpanded((v) => !v)}
-          >
-            {expanded ? '접기' : `펼치기 (${seasons.length})`}
-          </button>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {visibleSeasons.map((season) => {
+      <p className="text-muted-foreground text-[10px] font-semibold tracking-widest uppercase">
+        시즌
+      </p>
+      <div className="flex flex-wrap gap-1 sm:gap-1.5">
+        {seasons.map((season) => {
           const isActive = season.seasonNumber === selectedSeason
-          const accent = tierAccentColor(season.tier)
+          const accent = tierAccentColor(season.rank.tier)
+          const tierLabel = formatTierBadgeCompact(season.rank)
 
           return (
             <button
@@ -82,8 +34,9 @@ export function SeasonHistoryGrid({
               type="button"
               onClick={() => onSelect(season.seasonNumber)}
               aria-pressed={isActive}
+              aria-label={`S${season.seasonNumber} ${tierLabel}`}
               className={cn(
-                'flex h-11 w-[3.75rem] shrink-0 flex-col items-center justify-center rounded-md border px-1 py-1 transition-colors',
+                'flex h-9 w-14 shrink-0 flex-col items-center justify-center rounded-md border px-1 py-1 transition-colors sm:h-11 sm:w-16',
                 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none',
                 isActive
                   ? 'bg-primary/15 ring-primary/30 ring-1'
@@ -97,17 +50,17 @@ export function SeasonHistoryGrid({
             >
               <span
                 className={cn(
-                  'text-[11px] leading-none font-bold tabular-nums',
+                  'text-[10px] leading-none font-bold tabular-nums sm:text-[11px]',
                   isActive ? 'text-foreground' : 'text-muted-foreground',
                 )}
               >
                 S{season.seasonNumber}
               </span>
               <span
-                className="mt-1 max-w-full truncate text-[9px] leading-none font-semibold"
+                className="mt-1 max-w-full px-0.5 text-[9px] leading-none font-semibold sm:text-[10px]"
                 style={{ color: accent }}
               >
-                {compactTierLabel(season.tier)}
+                {tierLabel}
               </span>
             </button>
           )

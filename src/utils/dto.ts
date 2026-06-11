@@ -1,6 +1,12 @@
 import type { MatchSummary, MatchSummaryDTO } from '@/types/match'
 import type { PlayerStats, PlayerStatsDTO } from '@/types/player'
 import { localizeCharacter, localizeTier } from '@/utils/gameLabels'
+import { localizeGameMode, resolveGameMode } from '@/utils/gameMode'
+import {
+  buildMatchRecordDemoStats,
+  getTeamLuckIcon,
+  getTeamLuckLabel,
+} from '@/utils/matchDemoStats'
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100
@@ -21,6 +27,25 @@ function ordinal(n: number): string {
   return `${n}th`
 }
 
+function hashString(value: string): number {
+  let hash = 0
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash)
+}
+
+export function demoGameDurationSeconds(matchId: string): number {
+  return 1200 + (hashString(matchId) % 1201)
+}
+
+export function formatGameDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
 function relativeTime(fromIso: string, now: Date): string {
   const diffMs = now.getTime() - new Date(fromIso).getTime()
   const minute = 60_000
@@ -28,21 +53,38 @@ function relativeTime(fromIso: string, now: Date): string {
   const day = 24 * hour
   const week = 7 * day
 
-  if (diffMs < minute) return 'just now'
-  if (diffMs < hour) return `${Math.floor(diffMs / minute)}m ago`
-  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`
-  if (diffMs < week) return `${Math.floor(diffMs / day)}d ago`
-  return `${Math.floor(diffMs / week)}w ago`
+  if (diffMs < minute) return '방금 전'
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)}분 전`
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}시간 전`
+  if (diffMs < week) return `${Math.floor(diffMs / day)}일 전`
+  return `${Math.floor(diffMs / week)}주 전`
 }
 
 export function toMatchSummaryDTO(match: MatchSummary, now: Date = new Date()): MatchSummaryDTO {
   const kdaNum = round2(kdaRatio(match.kills, match.deaths, match.assists))
+  const gameDuration = match.gameDuration ?? demoGameDurationSeconds(match.matchId)
+  const demo = buildMatchRecordDemoStats(match)
+  const gameMode = resolveGameMode(match)
+
   return {
     ...match,
     characterName: localizeCharacter(match.characterName),
+    gameMode,
+    gameModeLabel: localizeGameMode(gameMode),
     kdaString: kdaNum.toFixed(2),
     placementLabel: ordinal(match.placement),
     relativeTime: relativeTime(match.gameStartedAt, now),
+    gameDuration,
+    gameDurationLabel: formatGameDuration(gameDuration),
+    teamKill: demo.teamKill,
+    playerDamage: demo.playerDamage,
+    rpDeltaValue: demo.rpDeltaValue,
+    matchGrade: demo.matchGrade,
+    teamLuck: demo.teamLuck,
+    teamLuckLabel: getTeamLuckLabel(demo.teamLuck),
+    teamLuckIcon: getTeamLuckIcon(demo.teamLuck),
+    routeNumber: demo.routeNumber,
+    characterLevel: demo.characterLevel,
   }
 }
 

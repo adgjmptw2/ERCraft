@@ -9,6 +9,7 @@ import {
 import { config } from './config/env.js'
 import { attachErrorHandlers } from './plugins/errorHandler.js'
 import favoritesRoutes from './routes/favorites.js'
+import playersRoutes from './routes/players.js'
 import searchHistoryRoutes from './routes/searchHistory.js'
 
 export interface CreateAppOptions {
@@ -46,6 +47,7 @@ export async function createApp(options: CreateAppOptions = {}) {
 
   await app.register(favoritesRoutes, { prefix: '/api' })
   await app.register(searchHistoryRoutes, { prefix: '/api' })
+  await app.register(playersRoutes, { prefix: '/api' })
 
   return app
 }

@@ -21,6 +21,7 @@ const baseMatches: MatchSummary[] = [
   {
     matchId: 'a',
     userNum: 1,
+    characterNum: 11,
     characterName: 'Yuki',
     placement: 1,
     kills: 5,
@@ -32,6 +33,7 @@ const baseMatches: MatchSummary[] = [
   {
     matchId: 'b',
     userNum: 1,
+    characterNum: 11,
     characterName: 'Yuki',
     placement: 3,
     kills: 3,
@@ -43,6 +45,7 @@ const baseMatches: MatchSummary[] = [
   {
     matchId: 'c',
     userNum: 1,
+    characterNum: 24,
     characterName: 'Adela',
     placement: 6,
     kills: 1,
@@ -102,10 +105,31 @@ describe('toMatchSummaryDTO', () => {
     expect(dto.kdaString).toBe('3.00')
   })
 
-  it('relativeTime은 주입한 now 기준으로 계산', () => {
+  it('relativeTime은 주입한 now 기준 한국어', () => {
     const now = new Date('2026-04-20T12:00:00.000Z')
     const dto = toMatchSummaryDTO(base, now)
-    expect(dto.relativeTime).toBe('2h ago')
+    expect(dto.relativeTime).toBe('2시간 전')
+  })
+
+  it('gameDurationLabel은 mm:ss 형식 (zero-pad)', () => {
+    const dto = toMatchSummaryDTO({ ...base, gameDuration: 2061 })
+    expect(dto.gameDuration).toBe(2061)
+    expect(dto.gameDurationLabel).toBe('34:21')
+    expect(toMatchSummaryDTO({ ...base, gameDuration: 125 }).gameDurationLabel).toBe('02:05')
+  })
+
+  it('매치 행 데모 필드 포함', () => {
+    const dto = toMatchSummaryDTO(base)
+    expect(dto.playerDamage).toBeGreaterThanOrEqual(5000)
+    expect(dto.matchGrade).toMatch(/^[SABCD][+-]?$/)
+    expect(['good', 'normal', 'bad']).toContain(dto.teamLuck)
+  })
+
+  it('gameDuration 미지정 시 matchId 시드로 1200~2400', () => {
+    const dto = toMatchSummaryDTO(base)
+    expect(dto.gameDuration).toBeGreaterThanOrEqual(1200)
+    expect(dto.gameDuration).toBeLessThanOrEqual(2400)
+    expect(dto.gameDurationLabel).toMatch(/^\d+:\d{2}$/)
   })
 
   it('placementLabel은 서수 영어', () => {
@@ -114,5 +138,17 @@ describe('toMatchSummaryDTO', () => {
     expect(toMatchSummaryDTO({ ...base, placement: 3 }).placementLabel).toBe('3rd')
     expect(toMatchSummaryDTO({ ...base, placement: 4 }).placementLabel).toBe('4th')
     expect(toMatchSummaryDTO({ ...base, placement: 8 }).placementLabel).toBe('8th')
+  })
+
+  it('characterNum이 DTO에 유지됨', () => {
+    const dto = toMatchSummaryDTO({ ...base, characterNum: 3 })
+    expect(dto.characterNum).toBe(3)
+  })
+
+  it('gameModeLabel과 RP 표시 규칙', () => {
+    expect(toMatchSummaryDTO({ ...base, gameMode: 'rank' }).gameModeLabel).toBe('랭크')
+    expect(toMatchSummaryDTO({ ...base, gameMode: 'cobalt' }).gameModeLabel).toBe('코발트')
+    expect(toMatchSummaryDTO({ ...base, gameMode: 'union' }).gameModeLabel).toBe('유니온')
+    expect(toMatchSummaryDTO({ ...base, gameMode: 'normal' }).gameModeLabel).toBe('일반')
   })
 })

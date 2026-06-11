@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 
+import { HeaderPlayerSearch } from '@/components/shared/HeaderPlayerSearch'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
 import { cn } from '@/lib/utils'
 
@@ -23,10 +24,11 @@ export function AppShell() {
             <p className="text-foreground text-sm font-semibold tracking-tight">ERCraft</p>
             <p className="text-muted-foreground hidden text-xs sm:block">이터널리턴 플레이 리포트</p>
           </Link>
-          <nav className="flex shrink-0 items-center gap-1 sm:gap-1.5" aria-label="주요 메뉴">
-            <NavLink to="/" end className={navLinkClass}>
-              홈
-            </NavLink>
+          <nav
+            className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:gap-2"
+            aria-label="주요 메뉴"
+          >
+            <HeaderPlayerSearch />
             <NavLink to="/ranking" className={navLinkClass}>
               랭킹
             </NavLink>
@@ -34,7 +36,7 @@ export function AppShell() {
           </nav>
         </div>
       </header>
-      <main className="shell-container flex flex-1 flex-col py-9 sm:py-12 lg:py-14">
+      <main className="shell-container flex min-w-0 flex-1 flex-col overflow-x-hidden py-9 sm:py-12 lg:py-14">
         <Outlet />
       </main>
     </div>

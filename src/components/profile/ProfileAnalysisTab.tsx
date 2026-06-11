@@ -1,40 +1,53 @@
 import type { CharacterAnalysisReport } from '@/analysis/types'
 import type { PlayerAnalysisReport } from '@/analysis/types'
-import { CharacterReportPanel, PlayerReportPanel } from '@/components/analysis'
-import { RpTrendCard } from '@/components/profile/RpTrendCard'
-import type { RpTrendPoint } from '@/mocks/loader'
-import { SectionHeader, SurfaceCard } from '@/components/shared'
+import type { PlayerPlayStyleAnalysis } from '@/analysis/playStyleTypes'
+import { AnalysisTabLayout } from '@/components/analysis/tab'
+import type { MatchSummary } from '@/types/match'
+import type { AnalysisScope } from '@/utils/analysisAggregation'
 
 export interface ProfileAnalysisTabProps {
+  nickname: string
   analysisReport: PlayerAnalysisReport | null
-  characterReports: CharacterAnalysisReport[]
-  rpTrend: RpTrendPoint[]
-  seasonNumber: number
+  analysisCharacterReports: CharacterAnalysisReport[]
+  analysisMatches: MatchSummary[]
+  populationMatchSets: MatchSummary[][]
+  tierPopulationMatchSets: MatchSummary[][]
+  populationMatches: MatchSummary[]
+  analysisBasisLabel: string
+  analysisScope: AnalysisScope
+  onAnalysisScopeChange: (scope: AnalysisScope) => void
+  showAnalysisScopeToggle: boolean
+  playStyleAnalysis: PlayerPlayStyleAnalysis | null
 }
 
 export function ProfileAnalysisTab({
+  nickname,
   analysisReport,
-  characterReports,
-  rpTrend,
-  seasonNumber,
+  analysisCharacterReports,
+  analysisMatches,
+  populationMatchSets,
+  tierPopulationMatchSets,
+  populationMatches,
+  analysisBasisLabel,
+  analysisScope,
+  onAnalysisScopeChange,
+  showAnalysisScopeToggle,
+  playStyleAnalysis,
 }: ProfileAnalysisTabProps) {
   return (
-    <div className="flex flex-col gap-8 lg:gap-10">
-      <RpTrendCard
-        points={rpTrend}
-        title={`S${seasonNumber} 데모 RP 흐름`}
-        description={
-          rpTrend.length > 0
-            ? `S${seasonNumber} 샘플 매치 기준 RP 변화입니다.`
-            : '이 시즌 샘플 RP 기록이 없습니다.'
-        }
-      />
-
-      <SurfaceCard variant="inset" padding="lg" className="space-y-10 lg:space-y-12 p-5 sm:p-6">
-        <SectionHeader title={`S${seasonNumber} 플레이 분석`} size="lg" />
-        {analysisReport ? <PlayerReportPanel report={analysisReport} /> : null}
-        <CharacterReportPanel reports={characterReports} />
-      </SurfaceCard>
-    </div>
+    <AnalysisTabLayout
+      nickname={nickname}
+      playStyleAnalysis={playStyleAnalysis}
+      analysisReport={analysisReport}
+      characterReports={analysisCharacterReports}
+      analysisMatches={analysisMatches}
+      populationMatchSets={populationMatchSets}
+      tierPopulationMatchSets={tierPopulationMatchSets}
+      populationMatches={populationMatches}
+      basisLabel={analysisBasisLabel}
+      analysisScope={analysisScope}
+      showScopeToggle={showAnalysisScopeToggle}
+      onScopeChange={onAnalysisScopeChange}
+    />
   )
 }

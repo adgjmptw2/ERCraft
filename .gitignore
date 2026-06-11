@@ -5,3 +5,6 @@ backend/dist
 .env.local
 backend/.env
 *.zip
+raw-assets/
+raw/
+asset-raw/

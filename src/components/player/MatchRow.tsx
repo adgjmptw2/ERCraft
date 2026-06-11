@@ -115,6 +115,40 @@ function placementRowStyle(placement: number): PlacementRowStyle {
 
 
 
+function MatchStatSlashGrid({
+  teamKill,
+  kills,
+  assists,
+  className,
+}: {
+  teamKill: number
+  kills: number
+  assists: number
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'grid grid-cols-[1fr_auto_1fr_auto_1fr] gap-x-1 text-center text-[15px] leading-none tabular-nums',
+        className,
+      )}
+    >
+      <span className="text-stat-value font-bold">{teamKill}</span>
+      <span className="text-muted-foreground">/</span>
+      <span className="text-stat-value font-bold">{kills}</span>
+      <span className="text-muted-foreground">/</span>
+      <span className="text-stat-value font-bold">{assists}</span>
+      <span className="text-muted-foreground">TK</span>
+      <span className="text-muted-foreground">/</span>
+      <span className="text-muted-foreground">K</span>
+      <span className="text-muted-foreground">/</span>
+      <span className="text-muted-foreground">A</span>
+    </div>
+  )
+}
+
+
+
 function RowDot() {
 
   return <span className="text-muted-foreground shrink-0 px-0.5">·</span>
@@ -468,12 +502,12 @@ function MatchRecordRow({ match }: { match: MatchSummaryDTO }) {
               </div>
 
               <div className="flex min-w-0 items-center gap-1.5">
-                <div className="shrink-0 leading-none">
-                  <p className="text-muted-foreground text-xs">TK · K · A</p>
-                  <p className="text-stat-value text-base font-bold tabular-nums">
-                    {match.teamKill} / {match.kills} / {match.assists}
-                  </p>
-                </div>
+                <MatchStatSlashGrid
+                  teamKill={match.teamKill}
+                  kills={match.kills}
+                  assists={match.assists}
+                  className="shrink-0"
+                />
 
                 <div className="ml-auto flex shrink-0 items-center gap-1">
                   <div className="space-y-0.5" aria-label="장비">
@@ -620,27 +654,12 @@ function MatchRecordRow({ match }: { match: MatchSummaryDTO }) {
 
               <div className="flex w-[204px] shrink-0 items-center gap-1.5">
 
-                <div className="w-[78px] shrink-0 pl-3 leading-none">
-                  <div className="grid grid-cols-3 text-center">
-                    <div className="min-w-0">
-                      <p className="text-stat-value text-[15px] font-bold tabular-nums leading-none">
-                        {match.teamKill}
-                      </p>
-                      <p className="text-muted-foreground mt-0.5 text-[10px] leading-none">TK</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-stat-value text-[15px] font-bold tabular-nums leading-none">
-                        {match.kills}
-                      </p>
-                      <p className="text-muted-foreground mt-0.5 text-[10px] leading-none">K</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-stat-value text-[15px] font-bold tabular-nums leading-none">
-                        {match.assists}
-                      </p>
-                      <p className="text-muted-foreground mt-0.5 text-[10px] leading-none">A</p>
-                    </div>
-                  </div>
+                <div className="shrink-0 pl-3">
+                  <MatchStatSlashGrid
+                    teamKill={match.teamKill}
+                    kills={match.kills}
+                    assists={match.assists}
+                  />
                 </div>
 
                 <MatchGearSlotGrid preview={match.equipmentPreview} />

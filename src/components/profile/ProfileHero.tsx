@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
 
 import type { DemoRankingPosition } from '@/mocks/loader'
 import type { DemoSeasonRecord } from '@/mocks/seasonHistory'
 import type { PlayerSummary } from '@/types/player'
 import { SeasonHistoryGrid } from '@/components/profile/SeasonHistoryGrid'
 import { DemoDataNotice, SurfaceCard, TierBadge } from '@/components/shared'
+import { cn } from '@/lib/utils'
 
 export interface ProfileHeroProps {
   summary: PlayerSummary
@@ -27,9 +30,18 @@ export function ProfileHero({
   onSeasonChange,
   rp,
 }: ProfileHeroProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
   const rankingLabel = rankingPosition
     ? `데모 RP #${rankingPosition.position}`
     : null
+
+  async function handleRefresh() {
+    setIsRefreshing(true)
+    // TODO: API 연동 시 실제 갱신 호출
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    setIsRefreshing(false)
+  }
 
   return (
     <SurfaceCard
@@ -69,7 +81,18 @@ export function ProfileHero({
               <span className="text-muted-foreground text-xs sm:text-sm">{rankingLabel}</span>
             ) : null}
           </div>
-          <DemoDataNotice compact />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <DemoDataNotice compact />
+            <button
+              type="button"
+              onClick={() => void handleRefresh()}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <RefreshCw className={cn('size-3', isRefreshing && 'animate-spin')} />
+              {isRefreshing ? '갱신 중...' : '전적 갱신'}
+            </button>
+          </div>
         </div>
         <SeasonHistoryGrid
           seasons={seasons}

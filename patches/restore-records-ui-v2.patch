@@ -1,0 +1,3486 @@
+diff --git a/src/components/player/MatchEquipmentStrip.tsx b/src/components/player/MatchEquipmentStrip.tsx
+new file mode 100644
+index 0000000..db7723b
+--- /dev/null
++++ b/src/components/player/MatchEquipmentStrip.tsx
+@@ -0,0 +1,84 @@
++import { GameAssetIcon, ItemIcon, TacticalSkillIcon, TraitIcon, WeaponTypeIcon } from '@/components/shared'
++import type { MatchEquipmentPreview } from '@/types/match'
++
++interface MatchEquipmentStripProps {
++  preview?: MatchEquipmentPreview
++}
++
++/** 슬롯 1~4 — 좌: 무기종류·스킬(사각) / 우: 메인·보조 특성(원형) */
++export function MatchLoadoutSlotGrid({ preview }: MatchEquipmentStripProps) {
++  return (
++    <div className="grid grid-cols-2 gap-0.5" aria-label="무기·스킬·특성">
++      <WeaponTypeIcon
++        slug={preview?.weaponTypeSlug}
++        size="md"
++        shape="square"
++        decorative={false}
++        label="무기 종류"
++      />
++      <TraitIcon slug={preview?.mainTraitSlug} size="md" decorative={false} label="메인 특성" />
++      <TacticalSkillIcon
++        slug={preview?.tacticalSkillSlug}
++        size="md"
++        shape="square"
++        decorative={false}
++        label="전술 스킬"
++      />
++      <TraitIcon slug={preview?.subTraitSlug} size="md" decorative={false} label="보조 특성" />
++    </div>
++  )
++}
++
++/** 슬롯 5~9 — 무기 · 상의 · 모자 · 팔 · 신발 */
++export function MatchGearSlotGrid({ preview }: MatchEquipmentStripProps) {
++  const gear = preview?.gear
++
++  const grades = preview?.gearGrade
++
++  const slots = [
++    { key: 'weapon', slug: gear?.weapon, grade: grades?.weapon, label: '무기' },
++    { key: 'chest', slug: gear?.chest, grade: grades?.chest, label: '상의' },
++    { key: 'head', slug: gear?.head, grade: grades?.head, label: '모자' },
++    { key: 'arm', slug: gear?.arm, grade: grades?.arm, label: '팔' },
++    { key: 'leg', slug: gear?.leg, grade: grades?.leg, label: '신발' },
++  ] as const
++
++  return (
++    <div className="space-y-0.5" aria-label="장비">
++      <div className="flex gap-0.5">
++        {slots.slice(0, 3).map((slot) =>
++          slot.slug ? (
++            <ItemIcon
++              key={slot.key}
++              slug={slot.slug}
++              grade={slot.grade}
++              size="gear"
++              className="object-contain px-0.5 py-px"
++              decorative={false}
++              label={slot.label}
++            />
++          ) : (
++            <GameAssetIcon key={slot.key} size="gear" decorative label={slot.label} />
++          ),
++        )}
++      </div>
++      <div className="flex gap-0.5">
++        {slots.slice(3).map((slot) =>
++          slot.slug ? (
++            <ItemIcon
++              key={slot.key}
++              slug={slot.slug}
++              grade={slot.grade}
++              size="gear"
++              className="object-contain px-0.5 py-px"
++              decorative={false}
++              label={slot.label}
++            />
++          ) : (
++            <GameAssetIcon key={slot.key} size="gear" decorative label={slot.label} />
++          ),
++        )}
++      </div>
++    </div>
++  )
++}
+diff --git a/src/components/player/MatchRow.test.tsx b/src/components/player/MatchRow.test.tsx
+new file mode 100644
+index 0000000..8ea72b8
+--- /dev/null
++++ b/src/components/player/MatchRow.test.tsx
+@@ -0,0 +1,98 @@
++import { render } from '@testing-library/react'
++import { describe, expect, it } from 'vitest'
++
++import { MatchRow } from '@/components/player/MatchRow'
++import type { MatchSummaryDTO } from '@/types/match'
++import { toMatchSummaryDTO } from '@/utils/dto'
++
++function makeMatch(overrides: Partial<MatchSummaryDTO> = {}): MatchSummaryDTO {
++  const base = toMatchSummaryDTO({
++    matchId: 'test-match',
++    userNum: 1,
++    characterNum: 11,
++    characterName: 'Yuki',
++    placement: 1,
++    kills: 3,
++    deaths: 1,
++    assists: 2,
++    gameStartedAt: '2026-04-01T00:00:00.000Z',
++    victory: true,
++    gameMode: 'rank',
++  })
++  return { ...base, ...overrides }
++}
++
++describe('MatchRow', () => {
++  it('record variant가 characterNum 초상화 URL을 사용', () => {
++    const { container } = render(<MatchRow match={makeMatch()} variant="record" />)
++    const img = container.querySelector('img[src*="/assets/characters/"]')
++    expect(img).not.toBeNull()
++    expect(img).toHaveAttribute('src', '/assets/characters/11.webp')
++  })
++
++  it('characterNum 없으면 이니셜 fallback', () => {
++    const { container } = render(
++      <MatchRow match={makeMatch({ characterNum: undefined, characterName: '유키' })} variant="record" />,
++    )
++    expect(container.querySelector('img[src*="/assets/characters/"]')).toBeNull()
++    expect(container.textContent).toContain('유')
++  })
++
++  it('equipmentPreview 없으면 빈 장비 슬롯만 렌더', () => {
++    const { container } = render(<MatchRow match={makeMatch()} variant="record" />)
++    expect(container.querySelectorAll('img[src*="/assets/items/"]')).toHaveLength(0)
++    expect(container.querySelectorAll('img[src*="/assets/loadout/"]')).toHaveLength(0)
++  })
++
++  it('equipmentPreview — 슬롯별 검증 slug만 아이콘 요청', () => {
++    const { container } = render(
++      <MatchRow
++        match={makeMatch({
++          equipmentPreview: {
++            weaponTypeSlug: 'weapons/weapon-group/arcana',
++            tacticalSkillSlug: 'tactical-skills/blink',
++            mainTraitSlug: 'havoc/vampiric-bloodline',
++            subTraitSlug: 'invalid-trait',
++            gear: {
++              weapon: 'weapons/arcana/glass-bead',
++              chest: 'armor/chest/battle-suit',
++              head: 'fake-head',
++            },
++          },
++        })}
++        variant="record"
++      />,
++    )
++
++    expect(container.querySelector('img[src*="/assets/items/weapons/weapon-group/arcana"]')).not.toBeNull()
++    expect(container.querySelector('img[src*="/assets/loadout/tactical-skills/blink"]')).not.toBeNull()
++    expect(container.querySelector('img[src*="/assets/loadout/havoc/vampiric-bloodline"]')).not.toBeNull()
++    expect(container.querySelectorAll('img[src*="/assets/loadout/"]')).toHaveLength(2)
++    expect(container.querySelectorAll('img[src*="/assets/items/"]')).toHaveLength(5)
++    expect(container.innerHTML).not.toContain('fake-head')
++    expect(container.innerHTML).not.toContain('invalid-trait')
++  })
++
++  it('특성 슬롯은 우측 열만 원형', () => {
++    const { container } = render(
++      <MatchRow
++        match={makeMatch({
++          equipmentPreview: {
++            weaponTypeSlug: 'weapons/weapon-group/arcana',
++            tacticalSkillSlug: 'tactical-skills/blink',
++            mainTraitSlug: 'havoc/vampiric-bloodline',
++            subTraitSlug: 'chaos/red-sprite',
++          },
++        })}
++        variant="record"
++      />,
++    )
++    const loadoutGrid = container.querySelector('[aria-label="무기·스킬·특성"]')
++    const icons = loadoutGrid?.querySelectorAll('img') ?? []
++    expect(icons).toHaveLength(4)
++    expect(icons[0]?.className).not.toContain('rounded-full')
++    expect(icons[1]?.className).toContain('rounded-full')
++    expect(icons[2]?.className).not.toContain('rounded-full')
++    expect(icons[3]?.className).toContain('rounded-full')
++  })
++})
+diff --git a/src/components/player/MatchRow.tsx b/src/components/player/MatchRow.tsx
+index 72f2111..3f9cb0c 100644
+--- a/src/components/player/MatchRow.tsx
++++ b/src/components/player/MatchRow.tsx
+@@ -1,72 +1,809 @@
+-import { Link } from 'react-router-dom'
++import { useState, type ReactNode } from 'react'
++
++import { ChevronDown, ChevronUp } from 'lucide-react'
++
++
++
++import { resolveVerifiedGearItemSlug } from '@/assets/itemAssetMap'
++import { MatchGearSlotGrid, MatchLoadoutSlotGrid } from '@/components/player/MatchEquipmentStrip'
++
++import { CharacterAvatar } from '@/components/shared'
+ 
+ import { cn } from '@/lib/utils'
++
+ import type { MatchSummaryDTO } from '@/types/match'
+-import { SurfaceCard } from '@/components/shared/SurfaceCard'
++
++import {
++
++  formatMatchNumber,
++
++  formatRpDelta,
++
++  matchGradeColor,
++
++} from '@/utils/matchDemoStats'
++
++import { isRankGameMode } from '@/utils/gameMode'
++
++import type { CharacterFineGrade } from '@/utils/characterGrade'
++
++
+ 
+ export interface MatchRowProps {
++
+   match: MatchSummaryDTO
++
+   variant?: 'default' | 'record'
++
+ }
+ 
+-export function MatchRow({ match, variant = 'default' }: MatchRowProps) {
+-  const isRecord = variant === 'record'
+ 
++
++interface PlacementRowStyle {
++
++  borderColor: string
++
++  rankColor: string
++
++}
++
++
++
++function placementRowBgClass(placement: number): string {
++
++  if (placement === 1) {
++
++    return 'bg-[rgba(34,197,94,0.06)] dark:bg-[rgba(34,197,94,0.08)]'
++
++  }
++
++
++
++  if (placement >= 2 && placement <= 3) {
++
++    return 'bg-[rgba(96,165,250,0.06)] dark:bg-[rgba(96,165,250,0.06)]'
++
++  }
++
++
++
++  return 'bg-card dark:bg-transparent'
++
++}
++
++
++
++function placementRowStyle(placement: number): PlacementRowStyle {
++
++  if (placement === 1) {
++
++    return {
++
++      borderColor: '#22c55e',
++
++      rankColor: '#22c55e',
++
++    }
++
++  }
++
++
++
++  if (placement >= 2 && placement <= 3) {
++
++    return {
++
++      borderColor: '#60a5fa',
++
++      rankColor: '#60a5fa',
++
++    }
++
++  }
++
++
++
++  return {
++
++    borderColor: 'var(--border)',
++
++    rankColor: 'var(--muted-foreground)',
++
++  }
++
++}
++
++
++
++function MatchStatSlashGrid({
++  teamKill,
++  kills,
++  assists,
++  className,
++}: {
++  teamKill: number
++  kills: number
++  assists: number
++  className?: string
++}) {
+   return (
+-    <li className="min-w-0">
+-      <Link
+-        to={`/matches/${encodeURIComponent(match.matchId)}`}
+-        className="block rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+-        aria-label={`${match.characterName} 매치 상세 보기`}
++    <div
++      className={cn(
++        'grid grid-cols-[1fr_auto_1fr_auto_1fr] gap-x-1 text-center text-[15px] leading-none tabular-nums',
++        className,
++      )}
++    >
++      <span className="text-stat-value font-bold">{teamKill}</span>
++      <span className="text-muted-foreground">/</span>
++      <span className="text-stat-value font-bold">{kills}</span>
++      <span className="text-muted-foreground">/</span>
++      <span className="text-stat-value font-bold">{assists}</span>
++      <span className="text-muted-foreground">TK</span>
++      <span className="text-muted-foreground">/</span>
++      <span className="text-muted-foreground">K</span>
++      <span className="text-muted-foreground">/</span>
++      <span className="text-muted-foreground">A</span>
++    </div>
++  )
++}
++
++
++
++function RowDot() {
++
++  return <span className="text-muted-foreground shrink-0 px-0.5">·</span>
++
++}
++
++
++
++function ColDivider({ className }: { className?: string }) {
++
++  return (
++
++    <div className={cn('bg-border/70 mx-px w-px shrink-0 self-stretch', className)} />
++
++  )
++
++}
++
++
++
++function StatColumn({
++
++  label,
++
++  children,
++
++  className,
++
++}: {
++
++  label: string
++
++  children: ReactNode
++
++  className?: string
++
++}) {
++
++  return (
++
++    <div className={cn('flex min-w-0 flex-col justify-center gap-px leading-none', className)}>
++
++      <span className="text-label text-xs">{label}</span>
++
++      {children}
++
++    </div>
++
++  )
++
++}
++
++
++
++function MatchRecordStats({
++
++  match,
++
++  grade,
++
++  showsRp,
++
++  rpPositive,
++
++  rpDisplay,
++
++  layout,
++
++  className,
++
++}: {
++
++  match: MatchSummaryDTO
++
++  grade: CharacterFineGrade
++
++  showsRp: boolean
++
++  rpPositive: boolean
++
++  rpDisplay: string
++
++  layout: 'desktop' | 'mobile-inline'
++
++  className?: string
++
++}) {
++
++  if (layout === 'mobile-inline') {
++
++    return (
++
++      <div
++
++        className={cn(
++
++          'border-border/60 text-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t pt-1 text-xs leading-snug',
++
++          className,
++
++        )}
++
+       >
+-        <SurfaceCard
+-          padding={isRecord ? 'sm' : 'md'}
+-          variant={match.victory ? 'muted' : 'default'}
+-          interactive
+-          className={cn(
+-            isRecord ? 'border-l-[3px]' : 'border-l-4',
+-            match.victory
+-              ? isRecord
+-                ? 'border-l-green-500 bg-green-500/5'
+-                : 'border-l-green-500/90'
+-              : isRecord
+-                ? 'border-l-muted-foreground/50 bg-muted/20'
+-                : 'border-l-red-500/80',
+-          )}
+-        >
+-          <div
++
++        <span className="tabular-nums">
++
++          <span className="text-muted-foreground">딜량: </span>
++
++          <span className="font-bold">{formatMatchNumber(match.playerDamage)}</span>
++
++        </span>
++
++        <span className="tabular-nums">
++
++          <span className="text-muted-foreground">RP: </span>
++
++          <span
++
+             className={cn(
+-              'flex gap-2',
+-              isRecord
+-                ? 'flex-row flex-wrap items-center justify-between'
+-                : 'flex-col md:flex-row md:items-center md:justify-between',
++
++              'font-bold',
++
++              !showsRp && 'text-muted-foreground',
++
++              showsRp && rpPositive && 'text-green-500',
++
++              showsRp && !rpPositive && 'text-muted-foreground',
++
+             )}
++
+           >
+-            <div className="flex min-w-0 flex-wrap items-center gap-2">
+-              <p className="text-foreground font-semibold break-all">{match.characterName}</p>
+-              <span
+-                className={cn(
+-                  'shrink-0 rounded-md px-2 py-0.5 text-xs font-medium',
+-                  match.victory
+-                    ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+-                    : 'bg-red-500/10 text-red-800 dark:text-red-200',
+-                )}
+-              >
+-                {match.victory ? '승리' : '패배'}
+-              </span>
++
++            {rpDisplay}
++
++          </span>
++
++        </span>
++
++        <span className="min-w-0 truncate">
++
++          <span className="text-muted-foreground">팀운: </span>
++
++          <span className="font-medium">
++
++            {match.teamLuckIcon} {match.teamLuckLabel}
++
++          </span>
++
++        </span>
++
++      </div>
++
++    )
++
++  }
++
++
++
++  return (
++
++    <div className={cn('flex min-w-0 flex-1 items-center justify-between gap-2', className)}>
++
++      <StatColumn label="딜량" className="shrink-0">
++
++        <span className="text-stat-value text-[13px] font-bold tabular-nums">
++
++          {formatMatchNumber(match.playerDamage)}
++
++        </span>
++
++      </StatColumn>
++
++
++
++      <StatColumn label="RP" className="shrink-0">
++
++        <span
++
++          className={cn(
++
++            'text-[13px] font-bold tabular-nums',
++
++            !showsRp && 'text-muted-foreground',
++
++            showsRp && rpPositive && 'text-green-500',
++
++            showsRp && !rpPositive && 'text-muted-foreground',
++
++          )}
++
++        >
++
++          {rpDisplay}
++
++        </span>
++
++      </StatColumn>
++
++
++
++      <StatColumn label="등급" className="shrink-0">
++
++        <span
++
++          className="inline-flex w-fit rounded px-1 py-0.5 text-[13px] font-bold tabular-nums"
++
++          style={{
++
++            color: matchGradeColor(grade),
++
++            backgroundColor: `${matchGradeColor(grade)}18`,
++
++          }}
++
++        >
++
++          {match.matchGrade}
++
++        </span>
++
++      </StatColumn>
++
++
++
++      <StatColumn label="팀운" className="min-w-0 max-w-[5.5rem]">
++
++        <span className="text-stat-value truncate text-[12px] font-medium leading-none">
++
++          {match.teamLuckIcon} {match.teamLuckLabel}
++
++        </span>
++
++      </StatColumn>
++
++    </div>
++
++  )
++
++}
++
++
++
++function MatchRecordRow({ match }: { match: MatchSummaryDTO }) {
++
++  const [detailOpen, setDetailOpen] = useState(false)
++
++  const style = placementRowStyle(match.placement)
++
++  const grade = match.matchGrade as CharacterFineGrade
++
++  const rpPositive = match.rpDeltaValue > 0
++
++  const showsRp = isRankGameMode(match.gameMode)
++
++  const rpDisplay = showsRp ? formatRpDelta(match.rpDeltaValue) : '-'
++
++
++
++  return (
++
++    <article
++
++      className={cn(
++
++        'border-border/60 relative min-h-0 overflow-hidden rounded-lg border border-l-[3px] md:min-h-[90px]',
++
++        placementRowBgClass(match.placement),
++
++      )}
++
++      style={{
++
++        borderLeftColor: style.borderColor,
++
++      }}
++
++    >
++
++      <div className="px-1 py-1.5 pr-7 md:px-2 md:py-3 md:pr-6">
++
++        <div className="flex min-w-0 items-center justify-between gap-1.5 pb-0.5 md:pb-1">
++
++          <div className="text-muted-foreground flex min-w-0 flex-wrap items-center text-xs leading-none sm:text-[10px]">
++
++            <span className="font-bold tabular-nums" style={{ color: style.rankColor }}>
++
++              #{match.placement}
++
++            </span>
++
++            <RowDot />
++
++            <span>{match.gameModeLabel}</span>
++
++            <RowDot />
++
++            <span className="tabular-nums">{match.gameDurationLabel}</span>
++
++            <RowDot />
++
++            <span className="leading-none">{match.relativeTime}</span>
++
++          </div>
++
++          <span className="text-muted-foreground shrink-0 text-xs leading-none tabular-nums md:text-[10px]">
++
++            루트 #{match.routeNumber}
++
++          </span>
++
++        </div>
++
++
++
++        <div className="min-w-0">
++
++          <div className="space-y-1 md:hidden">
++
++            <div className="grid grid-cols-[3.5rem_1fr] items-center gap-x-1.5">
++
++              <div className="flex w-[3.5rem] flex-col items-center gap-px">
++
++                <div className="relative shrink-0">
++
++                <CharacterAvatar
++
++                  characterNum={match.characterNum}
++
++                  characterName={match.characterName}
++
++                  size="lg"
++
++                  className="border-border border bg-transparent"
++
++                />
++
++                <span className="bg-muted text-muted-foreground absolute -right-0.5 -bottom-0.5 rounded px-0.5 text-[10px] font-medium leading-none tabular-nums">
++
++                  Lv.{match.characterLevel}
++
++                </span>
++
++              </div>
++
++              <p className="text-muted-foreground w-full truncate text-center text-[10px] leading-none">
++
++                {match.characterName}
++
++              </p>
++
++              </div>
++
++              <div className="flex min-w-0 items-center gap-1.5">
++                <MatchStatSlashGrid
++                  teamKill={match.teamKill}
++                  kills={match.kills}
++                  assists={match.assists}
++                  className="shrink-0"
++                />
++
++                <div className="ml-auto flex shrink-0 items-center gap-1">
++                  <div className="space-y-0.5" aria-label="장비">
++                    {(
++                      [
++                        [
++                          {
++                            slug: match.equipmentPreview?.gear?.weapon,
++                            label: '무기',
++                          },
++                          {
++                            slug: match.equipmentPreview?.gear?.chest,
++                            label: '상의',
++                          },
++                          {
++                            slug: match.equipmentPreview?.gear?.head,
++                            label: '모자',
++                          },
++                        ],
++                        [
++                          {
++                            slug: match.equipmentPreview?.gear?.arm,
++                            label: '팔',
++                          },
++                          {
++                            slug: match.equipmentPreview?.gear?.leg,
++                            label: '신발',
++                          },
++                        ],
++                      ] as const
++                    ).map((row, rowIndex) => (
++                      <div key={rowIndex} className="flex justify-end gap-0.5">
++                        {row.map((slot) => {
++                          const verified = resolveVerifiedGearItemSlug(slot.slug)
++                          const iconUrl = verified ? `/assets/items/${verified}.webp` : null
++                          return (
++                            <div
++                              key={slot.label}
++                              className="border-border/70 bg-muted/30 text-muted-foreground flex h-7 w-8 shrink-0 items-center justify-center rounded-[3px] border text-[8px] font-medium"
++                              title={slot.label}
++                            >
++                              {iconUrl ? (
++                                <img
++                                  src={iconUrl}
++                                  alt=""
++                                  width={32}
++                                  height={28}
++                                  className="h-full w-full rounded-[3px] object-contain px-px py-px"
++                                  loading="lazy"
++                                />
++                              ) : (
++                                '·'
++                              )}
++                            </div>
++                          )
++                        })}
++                      </div>
++                    ))}
++                  </div>
++
++                  <span
++                    className="inline-flex shrink-0 rounded px-1 py-px text-xs font-bold tabular-nums"
++                    style={{
++                      color: matchGradeColor(grade),
++                      backgroundColor: `${matchGradeColor(grade)}18`,
++                    }}
++                  >
++                    {match.matchGrade}
++                  </span>
++                </div>
++              </div>
++
+             </div>
+-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+-              <span className="text-foreground font-bold">{match.placementLabel}</span>
+-              <span>
+-                KDA{' '}
+-                <span className="text-foreground font-semibold">{match.kdaString}</span>
+-              </span>
+-              <span className="text-xs">{match.relativeTime}</span>
+-              <span className="text-primary text-xs font-medium">상세 →</span>
++
++
++
++            <MatchRecordStats
++
++              layout="mobile-inline"
++
++              match={match}
++
++              grade={grade}
++
++              showsRp={showsRp}
++
++              rpPositive={rpPositive}
++
++              rpDisplay={rpDisplay}
++
++            />
++
++          </div>
++
++
++
++          <div className="hidden w-full min-w-0 items-center gap-2 md:flex">
++
++            <div className="flex shrink-0 items-center">
++
++              <div className="flex w-[124px] shrink-0 items-start gap-1.5">
++
++                <div className="w-[54px] shrink-0">
++
++                  <div className="relative">
++
++                    <CharacterAvatar
++
++                      characterNum={match.characterNum}
++
++                      characterName={match.characterName}
++
++                      size="lg"
++
++                      className="border-border border bg-transparent"
++
++                    />
++
++                    <span className="bg-muted text-muted-foreground absolute -right-0.5 -bottom-0.5 rounded px-0.5 text-[13px] font-medium leading-none tabular-nums">
++
++                      Lv.{match.characterLevel}
++
++                    </span>
++
++                  </div>
++
++                  <p className="text-muted-foreground mt-0.5 text-center text-[10px] leading-none">
++
++                    {match.characterName}
++
++                  </p>
++
++                </div>
++
++                <MatchLoadoutSlotGrid preview={match.equipmentPreview} />
++
++              </div>
++
++
++
++              <ColDivider />
++
++
++
++              <div className="flex w-[204px] shrink-0 items-center gap-1.5">
++
++                <div className="shrink-0 pl-3">
++                  <MatchStatSlashGrid
++                    teamKill={match.teamKill}
++                    kills={match.kills}
++                    assists={match.assists}
++                  />
++                </div>
++
++                <MatchGearSlotGrid preview={match.equipmentPreview} />
++
++              </div>
++
+             </div>
++
++
++
++            <ColDivider className="shrink-0" />
++
++
++
++            <MatchRecordStats
++
++              layout="desktop"
++
++              match={match}
++
++              grade={grade}
++
++              showsRp={showsRp}
++
++              rpPositive={rpPositive}
++
++              rpDisplay={rpDisplay}
++
++            />
++
+           </div>
+-        </SurfaceCard>
+-      </Link>
++
++        </div>
++
++      </div>
++
++
++
++      <button
++
++        type="button"
++
++        className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 flex size-5 shrink-0 -translate-y-1/2 items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
++
++        aria-expanded={detailOpen}
++
++        aria-label={detailOpen ? '매치 상세 접기' : '매치 상세 펼치기'}
++
++        onClick={() => setDetailOpen((v) => !v)}
++
++      >
++
++        {detailOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
++
++      </button>
++
++
++
++      {detailOpen ? (
++
++        <div className="border-border/60 bg-muted/40 flex h-16 items-center justify-center border-t dark:bg-black/5">
++
++          <p className="text-muted-foreground text-xs">매치 상세 데이터 (준비 중)</p>
++
++        </div>
++
++      ) : null}
++
++    </article>
++
++  )
++
++}
++
++
++
++export function MatchRow({ match, variant = 'default' }: MatchRowProps) {
++
++  if (variant === 'record') {
++
++    return (
++
++      <li className="min-w-0">
++
++        <MatchRecordRow match={match} />
++
++      </li>
++
++    )
++
++  }
++
++
++
++  const style = placementRowStyle(match.placement)
++
++
++
++  return (
++
++    <li className="min-w-0">
++
++      <article
++
++        className={cn(
++
++          'border-border/60 overflow-hidden rounded-lg border border-l-[3px] p-3',
++
++          placementRowBgClass(match.placement),
++
++        )}
++
++        style={{
++
++          borderLeftColor: style.borderColor,
++
++        }}
++
++      >
++
++        <div className="text-muted-foreground flex flex-wrap items-center gap-x-1 text-xs">
++
++          <span className="font-bold tabular-nums" style={{ color: style.rankColor }}>
++
++            #{match.placement}
++
++          </span>
++
++          <RowDot />
++
++          <span className="tabular-nums">{match.gameDurationLabel}</span>
++
++          <RowDot />
++
++          <span>{match.relativeTime}</span>
++
++        </div>
++
++      </article>
++
+     </li>
++
+   )
++
+ }
++
++
+diff --git a/src/components/player/RecentMatchList.tsx b/src/components/player/RecentMatchList.tsx
+index 43c0bd7..f333572 100644
+--- a/src/components/player/RecentMatchList.tsx
++++ b/src/components/player/RecentMatchList.tsx
+@@ -28,10 +28,12 @@ export function RecentMatchList({
+   onLoadMore,
+ }: RecentMatchListProps) {
+   return (
+-    <SurfaceCard padding="lg" className="flex h-full min-h-0 flex-col gap-5">
++    <SurfaceCard
++      padding="lg"
++      className="flex h-full min-h-0 min-w-0 flex-col gap-5 px-2 py-5 sm:px-5 md:px-6"
++    >
+       <SectionHeader
+         title="최근 매치"
+-        description="행을 눌러 샘플 매치 상세를 확인합니다."
+         badge={matchesSource ? <SourceBadge source={matchesSource} /> : undefined}
+       />
+       {isPending ? (
+@@ -49,7 +51,7 @@ export function RecentMatchList({
+         <EmptyState title="기록된 전적이 없습니다" />
+       ) : (
+         <>
+-          <ul className="flex flex-col gap-2.5">
++          <ul className="divide-border/60 flex min-w-0 flex-col divide-y [&>li]:min-w-0 [&>li]:py-1.5">
+             {matches.map((m) => (
+               <MatchRow key={m.matchId} match={m} variant="record" />
+             ))}
+diff --git a/src/components/profile/CharacterStats.tsx b/src/components/profile/CharacterStats.tsx
+index 5352191..894e6e1 100644
+--- a/src/components/profile/CharacterStats.tsx
++++ b/src/components/profile/CharacterStats.tsx
+@@ -1,9 +1,9 @@
+ import { useMemo, useState } from 'react'
+ 
+ import type { CharacterAnalysisReport } from '@/analysis/types'
++import { CharacterAvatar } from '@/components/shared'
+ import {
+   fineGradeColor,
+-  getDemoCharacterAvgDamage,
+   getDemoCharacterFineGrade,
+   type CharacterFineGrade,
+ } from '@/utils/characterGrade'
+@@ -16,20 +16,7 @@ type CharacterStatsTabId = 'all'
+ const TABS: { id: CharacterStatsTabId; label: string }[] = [{ id: 'all', label: '전체' }]
+ 
+ const COLUMN_HEADER_CLASS =
+-  'text-muted-foreground px-1 text-[9px] font-semibold uppercase tracking-wide'
+-
+-function CharacterAvatar({ name }: { name: string }) {
+-  const initial = name.trim().charAt(0).toUpperCase() || '?'
+-
+-  return (
+-    <div
+-      className="bg-primary/10 text-primary border-primary/20 flex size-8 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold"
+-      aria-hidden
+-    >
+-      {initial}
+-    </div>
+-  )
+-}
++  'text-muted-foreground px-0.5 text-[9px] font-semibold uppercase tracking-wide'
+ 
+ function winRateClass(rate: number): string {
+   if (rate >= 60) return 'text-amber-400'
+@@ -48,8 +35,14 @@ function FineGradeBadge({ grade }: { grade: CharacterFineGrade }) {
+   )
+ }
+ 
+-function formatDamage(value: number): string {
+-  return value.toLocaleString('ko-KR')
++function formatAvgStat(value: number | null, digits = 2): string {
++  if (value == null || Number.isNaN(value)) return '-'
++  return value.toFixed(digits)
++}
++
++function formatDamage(value: number | null): string {
++  if (value == null || Number.isNaN(value)) return '-'
++  return Math.round(value).toLocaleString('ko-KR')
+ }
+ 
+ export interface CharacterStatsProps {
+@@ -107,11 +100,11 @@ export function CharacterStats({
+           <div className="w-full overflow-x-hidden">
+             <table className="w-full table-fixed">
+               <colgroup>
+-                <col style={{ width: '28%' }} />
+-                <col style={{ width: '11%' }} />
+-                <col style={{ width: '11%' }} />
+-                <col style={{ width: '18%' }} />
+-                <col style={{ width: '22%' }} />
++                <col style={{ width: '36%' }} />
++                <col style={{ width: '10%' }} />
++                <col style={{ width: '10%' }} />
++                <col style={{ width: '15%' }} />
++                <col style={{ width: '19%' }} />
+                 <col style={{ width: '10%' }} />
+               </colgroup>
+               <thead>
+@@ -136,21 +129,19 @@ export function CharacterStats({
+               </thead>
+               <tbody className="divide-border/60 divide-y">
+                 {visible.map((char) => {
+-                  const totalKills = Math.round(char.avgKills * char.matchCount * 10) / 10
+                   const grade = getDemoCharacterFineGrade(userNum, seasonNumber, char.characterName)
+-                  const avgDamage = getDemoCharacterAvgDamage(
+-                    userNum,
+-                    seasonNumber,
+-                    char.characterName,
+-                  )
+ 
+                   return (
+                     <tr key={char.characterName} className="hover:bg-muted/35 transition-colors">
+-                      <td className="py-2 pr-1">
+-                        <div className="flex min-w-0 items-center gap-1.5">
+-                          <CharacterAvatar name={char.characterName} />
+-                          <div className="min-w-0">
+-                            <p className="text-foreground truncate text-xs font-semibold">
++                      <td className="py-1.5 pr-0.5">
++                        <div className="flex min-w-0 items-center gap-1">
++                          <CharacterAvatar
++                            characterNum={char.characterNum}
++                            characterName={char.characterName}
++                            size="md"
++                          />
++                          <div className="min-w-0 flex-1">
++                            <p className="text-stat-value text-xs leading-tight font-semibold break-keep">
+                               {char.characterName}
+                             </p>
+                             <p className="text-muted-foreground tabular-nums text-[10px]">
+@@ -159,7 +150,7 @@ export function CharacterStats({
+                           </div>
+                         </div>
+                       </td>
+-                      <td className="px-1 py-2 text-right">
++                      <td className="px-0.5 py-1.5 text-right">
+                         <p
+                           className={cn(
+                             'tabular-nums text-xs font-bold',
+@@ -169,31 +160,31 @@ export function CharacterStats({
+                           {char.winRate.toFixed(0)}%
+                         </p>
+                       </td>
+-                      <td className="px-1 py-2 text-right">
+-                        <p className="text-foreground tabular-nums text-xs font-semibold">
++                      <td className="px-0.5 py-1.5 text-right">
++                        <p className="text-stat-value tabular-nums text-xs font-semibold">
+                           {char.kda.toFixed(2)}
+                         </p>
+                       </td>
+-                      <td className="px-1 py-2 text-right">
++                      <td className="px-0.5 py-1.5 text-right">
+                         <p className="tabular-nums text-[11px] leading-tight">
+                           <span className="text-sky-400 text-[9px] font-semibold">TK</span>{' '}
+-                          <span className="text-foreground font-semibold">
+-                            {totalKills.toFixed(1)}
++                          <span className="text-stat-value font-semibold">
++                            {formatAvgStat(char.avgTeamKills)}
+                           </span>
+                         </p>
+                         <p className="tabular-nums text-[11px] leading-tight">
+                           <span className="text-muted-foreground text-[9px] font-semibold">K</span>{' '}
+                           <span className="text-muted-foreground font-medium">
+-                            {char.avgKills.toFixed(1)}
++                            {formatAvgStat(char.avgKills)}
+                           </span>
+                         </p>
+                       </td>
+-                      <td className="px-0.5 py-2 text-right">
+-                        <p className="text-foreground tabular-nums text-[11px] font-semibold leading-none">
+-                          {formatDamage(avgDamage)}
++                      <td className="px-0.5 py-1.5 text-right">
++                        <p className="text-stat-value tabular-nums text-[11px] font-semibold leading-none">
++                          {formatDamage(char.avgDamageToPlayers)}
+                         </p>
+                       </td>
+-                      <td className="overflow-visible px-0 py-2 text-center">
++                      <td className="overflow-visible px-0 py-1.5 text-center">
+                         <FineGradeBadge grade={grade} />
+                       </td>
+                     </tr>
+diff --git a/src/components/profile/CompactTierBadge.tsx b/src/components/profile/CompactTierBadge.tsx
+index 042ca19..344e8a7 100644
+--- a/src/components/profile/CompactTierBadge.tsx
++++ b/src/components/profile/CompactTierBadge.tsx
+@@ -1,28 +1,5 @@
++import { tierAccentColor } from '@/utils/rankTier'
+ import { cn } from '@/lib/utils'
+-import { tierToken } from '@/utils/gameLabels'
+-
+-type TierTone = 'iron' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'other'
+-
+-function toneForTier(tier: string): TierTone {
+-  const token = tierToken(tier)
+-  if (token.startsWith('아이언')) return 'iron'
+-  if (token.startsWith('브론즈')) return 'bronze'
+-  if (token.startsWith('실버')) return 'silver'
+-  if (token.startsWith('골드')) return 'gold'
+-  if (token.startsWith('플래티넘')) return 'platinum'
+-  if (token.startsWith('다이아')) return 'diamond'
+-  return 'other'
+-}
+-
+-const toneClass: Record<TierTone, string> = {
+-  iron: 'border-zinc-500/50 bg-zinc-500/15 text-zinc-300',
+-  bronze: 'border-amber-700/50 bg-amber-900/25 text-amber-200',
+-  silver: 'border-slate-400/50 bg-slate-400/15 text-slate-200',
+-  gold: 'border-yellow-500/50 bg-yellow-500/15 text-yellow-200',
+-  platinum: 'border-teal-400/50 bg-teal-500/15 text-teal-200',
+-  diamond: 'border-blue-500/50 bg-blue-500/15 text-blue-200',
+-  other: 'border-border bg-muted/60 text-muted-foreground',
+-}
+ 
+ export interface CompactTierBadgeProps {
+   tier: string
+@@ -30,16 +7,22 @@ export interface CompactTierBadgeProps {
+ }
+ 
+ export function CompactTierBadge({ tier, className }: CompactTierBadgeProps) {
+-  const tone = toneForTier(tier)
+-  const short = tier.split(/\s+/).slice(0, 2).join(' ')
++  const short = tier.trim() || '—'
++  const accent = tierAccentColor(short)
+ 
+   return (
+     <span
+       className={cn(
+         'inline-flex max-w-[5.5rem] shrink-0 items-center truncate rounded px-1.5 py-0.5 text-[10px] font-semibold',
+-        toneClass[tone],
+         className,
+       )}
++      style={{
++        color: accent,
++        borderColor: `${accent}55`,
++        backgroundColor: `${accent}18`,
++        borderWidth: 1,
++        borderStyle: 'solid',
++      }}
+       title={tier}
+     >
+       {short}
+diff --git a/src/components/profile/ProfileAnalysisHeroCard.tsx b/src/components/profile/ProfileAnalysisHeroCard.tsx
+new file mode 100644
+index 0000000..c67c365
+--- /dev/null
++++ b/src/components/profile/ProfileAnalysisHeroCard.tsx
+@@ -0,0 +1,57 @@
++import type { RoleSummaryResult } from '@/analysis/roleClassifier'
++import type { DemoPlayerCompactSummary } from '@/mocks/loader'
++import type { RpTrendPoint } from '@/mocks/loader'
++import type { SeasonRank } from '@/types/rank'
++import { ProfileCompactSummary } from '@/components/profile/ProfileCompactSummary'
++import { ProfileRoleSummary } from '@/components/profile/ProfileRoleSummary'
++import { RpTrendCard } from '@/components/profile/RpTrendCard'
++import { SeasonSummaryBadges } from '@/components/profile/SeasonSummaryBadges'
++import { SurfaceCard } from '@/components/shared'
++import { cn } from '@/lib/utils'
++
++export interface ProfileAnalysisHeroCardProps {
++  seasonNumber: number
++  rank: SeasonRank
++  tierDetail: string
++  rpTrend: RpTrendPoint[]
++  compactSummary: DemoPlayerCompactSummary | null
++  roleSummary: RoleSummaryResult | null
++  /** sidebar — 전적 탭 좌측 카드 폭에 맞춤 */
++  variant?: 'default' | 'sidebar'
++  className?: string
++}
++
++export function ProfileAnalysisHeroCard({
++  seasonNumber,
++  rank,
++  tierDetail,
++  rpTrend,
++  compactSummary,
++  roleSummary,
++  variant = 'default',
++  className,
++}: ProfileAnalysisHeroCardProps) {
++  const isSidebar = variant === 'sidebar'
++
++  return (
++    <SurfaceCard
++      padding="md"
++      className={cn('min-w-0 space-y-0', isSidebar && 'w-full max-w-full', className)}
++    >
++      <SeasonSummaryBadges seasonNumber={seasonNumber} rank={rank} tierDetail={tierDetail} />
++
++      <div className="border-border/60 my-2.5 border-t sm:my-3" aria-hidden />
++
++      <RpTrendCard
++        points={rpTrend}
++        embedded
++        compact
++        size={isSidebar ? 'sidebar' : 'default'}
++      />
++
++      {compactSummary ? <ProfileCompactSummary summary={compactSummary} /> : null}
++
++      {roleSummary ? <ProfileRoleSummary roleSummary={roleSummary} /> : null}
++    </SurfaceCard>
++  )
++}
+diff --git a/src/components/profile/ProfileAnalysisTab.tsx b/src/components/profile/ProfileAnalysisTab.tsx
+index 4bd7da0..9a3b373 100644
+--- a/src/components/profile/ProfileAnalysisTab.tsx
++++ b/src/components/profile/ProfileAnalysisTab.tsx
+@@ -1,40 +1,53 @@
+ import type { CharacterAnalysisReport } from '@/analysis/types'
+ import type { PlayerAnalysisReport } from '@/analysis/types'
+-import { CharacterReportPanel, PlayerReportPanel } from '@/components/analysis'
+-import { RpTrendCard } from '@/components/profile/RpTrendCard'
+-import type { RpTrendPoint } from '@/mocks/loader'
+-import { SectionHeader, SurfaceCard } from '@/components/shared'
++import type { PlayerPlayStyleAnalysis } from '@/analysis/playStyleTypes'
++import { AnalysisTabLayout } from '@/components/analysis/tab'
++import type { MatchSummary } from '@/types/match'
++import type { AnalysisScope } from '@/utils/analysisAggregation'
+ 
+ export interface ProfileAnalysisTabProps {
++  nickname: string
+   analysisReport: PlayerAnalysisReport | null
+-  characterReports: CharacterAnalysisReport[]
+-  rpTrend: RpTrendPoint[]
+-  seasonNumber: number
++  analysisCharacterReports: CharacterAnalysisReport[]
++  analysisMatches: MatchSummary[]
++  populationMatchSets: MatchSummary[][]
++  tierPopulationMatchSets: MatchSummary[][]
++  populationMatches: MatchSummary[]
++  analysisBasisLabel: string
++  analysisScope: AnalysisScope
++  onAnalysisScopeChange: (scope: AnalysisScope) => void
++  showAnalysisScopeToggle: boolean
++  playStyleAnalysis: PlayerPlayStyleAnalysis | null
+ }
+ 
+ export function ProfileAnalysisTab({
++  nickname,
+   analysisReport,
+-  characterReports,
+-  rpTrend,
+-  seasonNumber,
++  analysisCharacterReports,
++  analysisMatches,
++  populationMatchSets,
++  tierPopulationMatchSets,
++  populationMatches,
++  analysisBasisLabel,
++  analysisScope,
++  onAnalysisScopeChange,
++  showAnalysisScopeToggle,
++  playStyleAnalysis,
+ }: ProfileAnalysisTabProps) {
+   return (
+-    <div className="flex flex-col gap-8 lg:gap-10">
+-      <RpTrendCard
+-        points={rpTrend}
+-        title={`S${seasonNumber} 데모 RP 흐름`}
+-        description={
+-          rpTrend.length > 0
+-            ? `S${seasonNumber} 샘플 매치 기준 RP 변화입니다.`
+-            : '이 시즌 샘플 RP 기록이 없습니다.'
+-        }
+-      />
+-
+-      <SurfaceCard variant="inset" padding="lg" className="space-y-10 lg:space-y-12 p-5 sm:p-6">
+-        <SectionHeader title={`S${seasonNumber} 플레이 분석`} size="lg" />
+-        {analysisReport ? <PlayerReportPanel report={analysisReport} /> : null}
+-        <CharacterReportPanel reports={characterReports} />
+-      </SurfaceCard>
+-    </div>
++    <AnalysisTabLayout
++      nickname={nickname}
++      playStyleAnalysis={playStyleAnalysis}
++      analysisReport={analysisReport}
++      characterReports={analysisCharacterReports}
++      analysisMatches={analysisMatches}
++      populationMatchSets={populationMatchSets}
++      tierPopulationMatchSets={tierPopulationMatchSets}
++      populationMatches={populationMatches}
++      basisLabel={analysisBasisLabel}
++      analysisScope={analysisScope}
++      showScopeToggle={showAnalysisScopeToggle}
++      onScopeChange={onAnalysisScopeChange}
++    />
+   )
+ }
+diff --git a/src/components/profile/ProfileCompactSummary.tsx b/src/components/profile/ProfileCompactSummary.tsx
+new file mode 100644
+index 0000000..74ca646
+--- /dev/null
++++ b/src/components/profile/ProfileCompactSummary.tsx
+@@ -0,0 +1,53 @@
++import type { DemoPlayerCompactSummary } from '@/mocks/loader'
++import { cn } from '@/lib/utils'
++
++export interface ProfileCompactSummaryProps {
++  summary: DemoPlayerCompactSummary
++  className?: string
++}
++
++function formatNullableNumber(value: number | null, digits = 1): string {
++  if (value == null || Number.isNaN(value)) return '-'
++  return value.toFixed(digits)
++}
++
++function formatCount(value: number | null): string {
++  if (value == null || Number.isNaN(value)) return '-'
++  return Math.round(value).toLocaleString('ko-KR')
++}
++
++function CompactMetric({ label, value }: { label: string; value: string }) {
++  return (
++    <div className="bg-muted/35 border-border/50 rounded-md border px-2 py-1.5">
++      <p className="text-muted-foreground text-[10px] font-medium tracking-wide">{label}</p>
++      <p className="text-foreground text-sm font-semibold tabular-nums">{value}</p>
++    </div>
++  )
++}
++
++export function ProfileCompactSummary({ summary, className }: ProfileCompactSummaryProps) {
++  const items = [
++    { label: '평균 TK', value: formatNullableNumber(summary.averageTeamKills, 1) },
++    { label: '승률', value: summary.winRate != null ? `${summary.winRate}%` : '-' },
++    { label: '평균 순위', value: formatNullableNumber(summary.averagePlacement, 2) },
++    { label: '평균 딜량', value: formatCount(summary.averageDamageToPlayers) },
++    { label: '평균 시야', value: formatNullableNumber(summary.averageVisionScore, 1) },
++    { label: '평균 동물 킬', value: formatNullableNumber(summary.averageAnimalKills, 1) },
++  ]
++
++  return (
++    <div className={cn('border-border/60 space-y-2 border-t pt-3', className)}>
++      <div className="flex items-baseline justify-between gap-2">
++        <h3 className="text-foreground text-xs font-semibold">핵심 요약</h3>
++        <span className="text-muted-foreground text-[10px]">
++          {summary.sampleSize > 0 ? `데모 ${summary.sampleSize}경기 기준` : '데모 매치 없음'}
++        </span>
++      </div>
++      <div className="grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-3">
++        {items.map((item) => (
++          <CompactMetric key={item.label} label={item.label} value={item.value} />
++        ))}
++      </div>
++    </div>
++  )
++}
+diff --git a/src/components/profile/ProfileHero.tsx b/src/components/profile/ProfileHero.tsx
+index a3d0da9..7dceadf 100644
+--- a/src/components/profile/ProfileHero.tsx
++++ b/src/components/profile/ProfileHero.tsx
+@@ -1,10 +1,13 @@
++import { useState } from 'react'
+ import { Link } from 'react-router-dom'
++import { RefreshCw } from 'lucide-react'
+ 
+ import type { DemoRankingPosition } from '@/mocks/loader'
+ import type { DemoSeasonRecord } from '@/mocks/seasonHistory'
+ import type { PlayerSummary } from '@/types/player'
+ import { SeasonHistoryGrid } from '@/components/profile/SeasonHistoryGrid'
+ import { DemoDataNotice, SurfaceCard, TierBadge } from '@/components/shared'
++import { cn } from '@/lib/utils'
+ 
+ export interface ProfileHeroProps {
+   summary: PlayerSummary
+@@ -12,6 +15,7 @@ export interface ProfileHeroProps {
+   seasons: DemoSeasonRecord[]
+   selectedSeason: number
+   selectedTier: string
++  tierDetail?: string
+   onSeasonChange: (seasonNumber: number) => void
+   rp?: number
+ }
+@@ -22,17 +26,31 @@ export function ProfileHero({
+   seasons,
+   selectedSeason,
+   selectedTier,
++  tierDetail,
+   onSeasonChange,
+   rp,
+ }: ProfileHeroProps) {
++  const [isRefreshing, setIsRefreshing] = useState(false)
++
+   const rankingLabel = rankingPosition
+     ? `데모 RP #${rankingPosition.position}`
+     : null
+ 
++  async function handleRefresh() {
++    setIsRefreshing(true)
++    // TODO: API 연동 시 실제 갱신 호출
++    await new Promise((resolve) => setTimeout(resolve, 1500))
++    setIsRefreshing(false)
++  }
++
+   return (
+-    <SurfaceCard variant="accent" padding="lg" className="relative overflow-hidden">
++    <SurfaceCard
++      variant="accent"
++      padding="lg"
++      className="relative overflow-hidden p-3 sm:p-5 lg:p-6"
++    >
+       <div className="from-primary/5 pointer-events-none absolute inset-0 bg-gradient-to-r via-transparent to-transparent" />
+-      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
++      <div className="relative flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start lg:justify-between">
+         <div className="min-w-0 flex-1 space-y-2">
+           <Link
+             className="text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+@@ -41,21 +59,40 @@ export function ProfileHero({
+             ← 검색으로
+           </Link>
+           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+-            <h1 className="text-foreground text-2xl font-bold tracking-tight break-all sm:text-3xl">
++            <h1 className="text-foreground text-xl font-bold tracking-tight break-all sm:text-2xl lg:text-3xl">
+               {summary.nickname}
+             </h1>
+-            <TierBadge tier={selectedTier} />
+-            {rp != null ? (
+-              <span className="text-foreground text-base font-extrabold tabular-nums sm:text-lg">
+-                RP {rp}
++            {tierDetail ? (
++              <span className="text-foreground text-sm font-semibold tabular-nums sm:text-base">
++                {tierDetail}
+               </span>
+-            ) : null}
++            ) : (
++              <>
++                <TierBadge tier={selectedTier} />
++                {rp != null ? (
++                  <span className="text-foreground text-base font-extrabold tabular-nums sm:text-lg">
++                    RP {rp.toLocaleString('ko-KR')}
++                  </span>
++                ) : null}
++              </>
++            )}
+             <span className="text-muted-foreground text-sm tabular-nums">Lv.{summary.level}</span>
+             {rankingLabel ? (
+               <span className="text-muted-foreground text-xs sm:text-sm">{rankingLabel}</span>
+             ) : null}
+           </div>
+-          <DemoDataNotice compact />
++          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
++            <DemoDataNotice compact />
++            <button
++              type="button"
++              onClick={() => void handleRefresh()}
++              disabled={isRefreshing}
++              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
++            >
++              <RefreshCw className={cn('size-3', isRefreshing && 'animate-spin')} />
++              {isRefreshing ? '갱신 중...' : '전적 갱신'}
++            </button>
++          </div>
+         </div>
+         <SeasonHistoryGrid
+           seasons={seasons}
+diff --git a/src/components/profile/ProfileRecordsSidebar.tsx b/src/components/profile/ProfileRecordsSidebar.tsx
+index 61bbc19..f34f6a0 100644
+--- a/src/components/profile/ProfileRecordsSidebar.tsx
++++ b/src/components/profile/ProfileRecordsSidebar.tsx
+@@ -1,133 +1,45 @@
+ import type { CharacterAnalysisReport } from '@/analysis/types'
++import type { RoleSummaryResult } from '@/analysis/roleClassifier'
++import type { DemoPlayerCompactSummary } from '@/mocks/loader'
++import type { RpTrendPoint } from '@/mocks/loader'
+ import type { DemoSeasonSnapshot } from '@/mocks/seasonHistory'
+ import { CharacterStats } from '@/components/profile/CharacterStats'
+-import { WinLossBar } from '@/components/profile/WinLossBar'
++import { ProfileAnalysisHeroCard } from '@/components/profile/ProfileAnalysisHeroCard'
+ import { SurfaceCard } from '@/components/shared'
+-import { tierToken } from '@/utils/gameLabels'
+ import { cn } from '@/lib/utils'
+ 
+ export interface ProfileRecordsSidebarProps {
+   seasonSnapshot: DemoSeasonSnapshot
++  rpTrend: RpTrendPoint[]
++  compactSummary: DemoPlayerCompactSummary | null
++  roleSummary: RoleSummaryResult | null
+   characterReports: CharacterAnalysisReport[]
+   userNum: number
+   className?: string
+ }
+ 
+-const GRID_DIVIDER = '#2a2a2a'
+-
+-function formatNumber(value: number): string {
+-  return value.toLocaleString('ko-KR')
+-}
+-
+-function tierAccentColor(tier: string): string {
+-  const token = tierToken(tier)
+-  if (token.startsWith('아이언')) return '#9ca3af'
+-  if (token.startsWith('브론즈')) return '#cd7f32'
+-  if (token.startsWith('실버')) return '#aaaaaa'
+-  if (token.startsWith('골드')) return '#f0b429'
+-  if (token.startsWith('플래티넘')) return '#4fc3b0'
+-  if (token.startsWith('다이아')) return '#5b8dd9'
+-  return '#9ca3af'
+-}
+-
+-function compactTierLabel(tier: string): string {
+-  const parts = tier.trim().split(/\s+/)
+-  if (parts.length <= 1) return parts[0] ?? tier
+-  return `${parts[0]}${parts[1]}`
+-}
+-
+-function SeasonSummaryBadges({
+-  seasonNumber,
+-  tier,
+-}: {
+-  seasonNumber: number
+-  tier: string
+-}) {
+-  const accent = tierAccentColor(tier)
+-
+-  return (
+-    <div className="flex flex-wrap items-center gap-1.5">
+-      <span className="bg-muted text-foreground inline-flex h-7 min-w-[2.5rem] items-center justify-center rounded-md px-2 text-xs font-bold tabular-nums">
+-        S{seasonNumber}
+-      </span>
+-      <span
+-        className="inline-flex h-7 items-center rounded-md px-2 text-xs font-bold"
+-        style={{ color: accent, backgroundColor: `${accent}18` }}
+-      >
+-        {compactTierLabel(tier)}
+-      </span>
+-    </div>
+-  )
+-}
+-
+-function StatGrid({ items }: { items: { label: string; value: string }[] }) {
+-  return (
+-    <div className="grid grid-cols-2 overflow-hidden rounded-md">
+-      {items.map((item, index) => (
+-        <div
+-          key={item.label}
+-          className={cn(
+-            'flex flex-col gap-y-0.5 p-3',
+-            index % 2 === 0 && 'border-r',
+-            index < 2 && 'border-b',
+-          )}
+-          style={{ borderColor: GRID_DIVIDER }}
+-        >
+-          <p
+-            className="text-xs uppercase tracking-[0.05em]"
+-            style={{ color: '#6b7280' }}
+-          >
+-            {item.label}
+-          </p>
+-          <p className="text-base font-semibold tabular-nums text-white">{item.value}</p>
+-        </div>
+-      ))}
+-    </div>
+-  )
+-}
+-
+ export function ProfileRecordsSidebar({
+   seasonSnapshot,
++  rpTrend,
++  compactSummary,
++  roleSummary,
+   characterReports,
+   userNum,
+   className,
+ }: ProfileRecordsSidebarProps) {
+-  const coreStats = [
+-    { label: 'KDA', value: seasonSnapshot.kdaString },
+-    { label: '평균 순위', value: seasonSnapshot.avgPlacement.toFixed(2) },
+-    { label: 'TOP 3 비율', value: `${seasonSnapshot.top3Rate.toFixed(0)}%` },
+-    { label: '총 게임', value: `${seasonSnapshot.games}게임` },
+-  ]
+-
+-  const extraStats = [
+-    { label: '평균 생존시간', value: seasonSnapshot.avgSurvivalLabel },
+-    { label: '평균 피해량', value: formatNumber(seasonSnapshot.avgDamage) },
+-    { label: '평균 힐량', value: formatNumber(seasonSnapshot.avgHeal) },
+-    {
+-      label: '오브젝트 기여',
+-      value: `${seasonSnapshot.objectiveContribution.toFixed(0)}%`,
+-    },
+-  ]
+-
+   return (
+-    <aside className={cn('flex flex-col gap-3', className)}>
+-      <SurfaceCard padding="md" className="space-y-3">
+-        <SeasonSummaryBadges
+-          seasonNumber={seasonSnapshot.seasonNumber}
+-          tier={seasonSnapshot.tier}
+-        />
+-
+-        <WinLossBar
+-          wins={seasonSnapshot.wins}
+-          losses={seasonSnapshot.losses}
+-          winRate={seasonSnapshot.winRate}
+-        />
+-
+-        <StatGrid items={coreStats} />
+-        <StatGrid items={extraStats} />
+-      </SurfaceCard>
+-
+-      <SurfaceCard padding="md">
++    <aside className={cn('flex min-w-0 flex-col gap-3', className)}>
++      <ProfileAnalysisHeroCard
++        variant="sidebar"
++        seasonNumber={seasonSnapshot.seasonNumber}
++        rank={seasonSnapshot.rank}
++        tierDetail={seasonSnapshot.tierDetail}
++        rpTrend={rpTrend}
++        compactSummary={compactSummary}
++        roleSummary={roleSummary}
++      />
++
++      <SurfaceCard padding="md" className="min-w-0 px-2 py-4 md:px-3">
+         <CharacterStats
+           characterReports={characterReports}
+           userNum={userNum}
+diff --git a/src/components/profile/ProfileRecordsTab.tsx b/src/components/profile/ProfileRecordsTab.tsx
+index b2a1506..30eb408 100644
+--- a/src/components/profile/ProfileRecordsTab.tsx
++++ b/src/components/profile/ProfileRecordsTab.tsx
+@@ -1,4 +1,7 @@
+ import type { CharacterAnalysisReport } from '@/analysis/types'
++import type { RoleSummaryResult } from '@/analysis/roleClassifier'
++import type { DemoPlayerCompactSummary } from '@/mocks/loader'
++import type { RpTrendPoint } from '@/mocks/loader'
+ import type { DemoSeasonSnapshot } from '@/mocks/seasonHistory'
+ import type { MatchSummaryDTO } from '@/types/match'
+ import type { DataSource } from '@/types/api'
+@@ -7,6 +10,9 @@ import { RecentMatchList } from '@/components/player/RecentMatchList'
+ 
+ export interface ProfileRecordsTabProps {
+   seasonSnapshot: DemoSeasonSnapshot
++  rpTrend: RpTrendPoint[]
++  compactSummary: DemoPlayerCompactSummary | null
++  roleSummary: RoleSummaryResult | null
+   characterReports: CharacterAnalysisReport[]
+   userNum: number
+   matchItems: MatchSummaryDTO[]
+@@ -21,6 +27,9 @@ export interface ProfileRecordsTabProps {
+ 
+ export function ProfileRecordsTab({
+   seasonSnapshot,
++  rpTrend,
++  compactSummary,
++  roleSummary,
+   characterReports,
+   userNum,
+   matchItems,
+@@ -33,9 +42,12 @@ export function ProfileRecordsTab({
+   onLoadMore,
+ }: ProfileRecordsTabProps) {
+   return (
+-    <div className="grid gap-6 lg:grid-cols-[minmax(0,35%)_minmax(0,65%)] lg:items-start lg:gap-8">
++    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,35%)_minmax(0,65%)] lg:items-start lg:gap-8">
+       <ProfileRecordsSidebar
+         seasonSnapshot={seasonSnapshot}
++        rpTrend={rpTrend}
++        compactSummary={compactSummary}
++        roleSummary={roleSummary}
+         characterReports={characterReports}
+         userNum={userNum}
+       />
+diff --git a/src/components/profile/ProfileRoleSummary.tsx b/src/components/profile/ProfileRoleSummary.tsx
+new file mode 100644
+index 0000000..c4dec21
+--- /dev/null
++++ b/src/components/profile/ProfileRoleSummary.tsx
+@@ -0,0 +1,39 @@
++import type { RoleSummaryResult } from '@/analysis/roleClassifier'
++import { cn } from '@/lib/utils'
++
++export interface ProfileRoleSummaryProps {
++  roleSummary: RoleSummaryResult
++  className?: string
++}
++
++function roleLabel(value: string | null): string {
++  if (!value) return '판단 보류'
++  return value
++}
++
++export function ProfileRoleSummary({ roleSummary, className }: ProfileRoleSummaryProps) {
++  const secondary =
++    roleSummary.secondaryRole != null ? roleLabel(roleSummary.secondaryRole) : '보조 역할군 없음'
++
++  return (
++    <div className={cn('border-border/60 space-y-2 border-t pt-3', className)}>
++      <div className="space-y-0.5">
++        <h3 className="text-foreground text-xs font-semibold">역할군 요약</h3>
++        <p className="text-muted-foreground text-[10px]">최근 데모 매치 기준 · 룰 기반 역할 요약</p>
++      </div>
++
++      {roleSummary.status === 'insufficient' ? (
++        <p className="text-muted-foreground text-xs">역할군 표본 부족 ({roleSummary.sampleSize}경기)</p>
++      ) : (
++        <div className="flex flex-wrap gap-1.5">
++          <span className="bg-primary/10 text-primary inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold">
++            주 {roleLabel(String(roleSummary.primaryRole))}
++          </span>
++          <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium">
++            보조 {secondary}
++          </span>
++        </div>
++      )}
++    </div>
++  )
++}
+diff --git a/src/components/profile/ProfileScoreGrid.tsx b/src/components/profile/ProfileScoreGrid.tsx
+deleted file mode 100644
+index 507af13..0000000
+--- a/src/components/profile/ProfileScoreGrid.tsx
++++ /dev/null
+@@ -1,89 +0,0 @@
+-import type { DemoRankingPosition } from '@/mocks/loader'
+-import type { PlayerStatsDTO } from '@/types/player'
+-import { cn } from '@/lib/utils'
+-
+-export interface ProfileScoreGridProps {
+-  stats: PlayerStatsDTO
+-  rankingPosition?: DemoRankingPosition | null
+-  avgAssists?: number
+-  top3Rate?: number
+-  className?: string
+-}
+-
+-interface MetricItem {
+-  label: string
+-  value: string
+-  highlight?: boolean
+-}
+-
+-function formatOptional(n: number | undefined, digits = 2): string {
+-  if (n == null || Number.isNaN(n)) return '-'
+-  return n.toFixed(digits)
+-}
+-
+-function formatRanking(position: DemoRankingPosition | null | undefined): string {
+-  if (!position) return '랭킹 데이터 없음'
+-  return `#${position.position} · ${position.total}명 중 ${position.position}위`
+-}
+-
+-export function ProfileScoreGrid({
+-  stats,
+-  rankingPosition,
+-  avgAssists,
+-  top3Rate,
+-  className,
+-}: ProfileScoreGridProps) {
+-  const metrics: MetricItem[] = [
+-    { label: '데모 RP', value: String(stats.mmr), highlight: true },
+-    { label: '데모 RP 순위', value: formatRanking(rankingPosition), highlight: true },
+-    { label: '승률', value: `${stats.winRate}%` },
+-    { label: '게임 수', value: String(stats.games) },
+-    { label: '평균 순위', value: stats.avgPlacement.toFixed(2) },
+-    { label: '평균 킬', value: stats.avgKills.toFixed(2) },
+-    { label: 'KDA', value: stats.kdaString, highlight: true },
+-    {
+-      label: 'TOP 3 비율',
+-      value: top3Rate != null ? `${top3Rate.toFixed(0)}%` : '-',
+-    },
+-    { label: '평균 어시스트', value: formatOptional(avgAssists) },
+-    {
+-      label: '주 캐릭터',
+-      value: stats.mostPlayedCharacter.name,
+-      highlight: true,
+-    },
+-  ]
+-
+-  return (
+-    <div
+-      className={cn(
+-        'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4',
+-        className,
+-      )}
+-    >
+-      {metrics.map((metric) => (
+-        <div
+-          key={metric.label}
+-          className={cn(
+-            'border-border/70 bg-card/60 rounded-lg border px-3 py-3 transition-colors',
+-            'hover:border-primary/50 hover:bg-card/80',
+-            metric.highlight && 'border-primary/25 bg-primary/5 hover:border-primary/60',
+-          )}
+-        >
+-          <p className="text-muted-foreground text-[10px] font-medium tracking-widest uppercase sm:text-xs">
+-            {metric.label}
+-          </p>
+-          <p
+-            className={cn(
+-              'text-foreground mt-1.5 break-words font-bold tracking-tight',
+-              metric.highlight
+-                ? 'text-2xl font-extrabold sm:text-3xl'
+-                : 'text-lg font-bold sm:text-xl',
+-            )}
+-          >
+-            {metric.value}
+-          </p>
+-        </div>
+-      ))}
+-    </div>
+-  )
+-}
+diff --git a/src/components/profile/RpTrendCard.tsx b/src/components/profile/RpTrendCard.tsx
+index eaf08e5..40772db 100644
+--- a/src/components/profile/RpTrendCard.tsx
++++ b/src/components/profile/RpTrendCard.tsx
+@@ -2,6 +2,14 @@ import { useMemo, useState } from 'react'
+ 
+ import { EmptyState, SectionHeader, SurfaceCard } from '@/components/shared'
+ import type { RpTrendPoint } from '@/mocks/loader'
++import {
++  buildRpChartGeometry,
++  diamondPath,
++  RP_CHART_LAYOUTS,
++  RP_CHART_LINE_COLOR,
++  type RpChartLayout,
++} from '@/components/profile/rpChartGeometry'
++import { RP_TREND_RECENT_LIMIT } from '@/utils/rpTrendPoints'
+ import { cn } from '@/lib/utils'
+ 
+ export interface RpTrendCardProps {
+@@ -9,172 +17,217 @@ export interface RpTrendCardProps {
+   title?: string
+   description?: string
+   className?: string
++  embedded?: boolean
++  compact?: boolean
++  size?: keyof typeof RP_CHART_LAYOUTS
+ }
+ 
+-const CHART_WIDTH = 360
+-const CHART_HEIGHT = 140
+-const PADDING = { top: 16, right: 28, bottom: 28, left: 44 }
+-
+-function buildChartGeometry(points: RpTrendPoint[]) {
+-  const rpValues = points.map((p) => p.rpAfter)
+-  const minRp = Math.min(...rpValues)
+-  const maxRp = Math.max(...rpValues)
+-  const range = maxRp - minRp || 1
+-
+-  const innerW = CHART_WIDTH - PADDING.left - PADDING.right
+-  const innerH = CHART_HEIGHT - PADDING.top - PADDING.bottom
+-  const baselineY = CHART_HEIGHT - PADDING.bottom
+-
+-  const coords = points.map((p, i) => {
+-    const x = PADDING.left + (i / Math.max(points.length - 1, 1)) * innerW
+-    const y = PADDING.top + innerH - ((p.rpAfter - minRp) / range) * innerH
+-    return { x, y, point: p }
+-  })
+-
+-  const linePath = coords
+-    .map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
+-    .join(' ')
+-
+-  const first = coords[0]
+-  const last = coords[coords.length - 1]
+-  const areaPath =
+-    first && last
+-      ? `${linePath} L ${last.x.toFixed(1)} ${baselineY} L ${first.x.toFixed(1)} ${baselineY} Z`
+-      : ''
+-
+-  return { coords, linePath, areaPath, minRp, maxRp, baselineY }
++interface TooltipAnchor {
++  point: RpTrendPoint
++  xPercent: number
++  yPercent: number
++  placeBelow: boolean
++}
++
++function RpTrendTooltip({ anchor }: { anchor: TooltipAnchor }) {
++  const { point } = anchor
++  const showRange =
++    point.dayMinRp != null &&
++    point.dayMaxRp != null &&
++    (point.dayMinRp !== point.dayMaxRp || (point.gamesPlayed ?? 0) > 1)
++
++  return (
++    <div
++      className="border-border/70 bg-popover text-popover-foreground pointer-events-none absolute z-10 w-max max-w-[11rem] rounded-md border px-2 py-1.5 text-[10px] leading-snug shadow-sm"
++      style={{
++        left: `${anchor.xPercent}%`,
++        top: `${anchor.yPercent}%`,
++        transform: anchor.placeBelow ? 'translate(-50%, 10px)' : 'translate(-50%, calc(-100% - 10px))',
++      }}
++    >
++      <p className="text-muted-foreground font-medium">{point.dateLabel}</p>
++      <p className="text-foreground mt-0.5 font-semibold whitespace-nowrap tabular-nums">
++        마무리 {point.rpAfter.toLocaleString('ko-KR')}
++      </p>
++      {showRange ? (
++        <p className="text-muted-foreground mt-0.5 whitespace-nowrap tabular-nums">
++          최저 {point.dayMinRp!.toLocaleString('ko-KR')} · 최고 {point.dayMaxRp!.toLocaleString('ko-KR')}
++        </p>
++      ) : null}
++      {point.gamesPlayed != null && point.gamesPlayed > 1 ? (
++        <p className="text-muted-foreground/80 mt-0.5 tabular-nums">{point.gamesPlayed}판</p>
++      ) : null}
++    </div>
++  )
+ }
+ 
+ export function RpTrendCard({
+   points,
+-  title = '데모 RP 흐름',
+-  description = '샘플 매치 기준 경기 후 RP 변화입니다.',
++  title = 'RP 추이',
++  description = `최근 ${RP_TREND_RECENT_LIMIT}일 마무리 RP`,
+   className,
++  embedded = false,
++  compact = false,
++  size = 'default',
+ }: RpTrendCardProps) {
+-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
++  const [anchor, setAnchor] = useState<TooltipAnchor | null>(null)
++  const layout: RpChartLayout = RP_CHART_LAYOUTS[size]
++  const isSidebar = size === 'sidebar'
+ 
+   const hasChart = points.length >= 2
+-  const geometry = useMemo(() => (hasChart ? buildChartGeometry(points) : null), [hasChart, points])
++  const geometry = useMemo(
++    () => (hasChart ? buildRpChartGeometry(points, RP_CHART_LAYOUTS[size]) : null),
++    [hasChart, points, size],
++  )
+   const latestRp = points.at(-1)?.rpAfter
+-  const startRp = points.at(0)?.rpAfter
+-  const activePoint = activeIndex != null ? geometry?.coords[activeIndex] : null
+ 
+-  return (
+-    <SurfaceCard variant="default" padding="lg" className={cn('space-y-5', className)}>
+-      <SectionHeader title={title} description={description} size="default" />
+-      {!hasChart ? (
+-        <EmptyState title="RP 흐름 데이터 없음" description="샘플 매치에 RP 기록이 없습니다." />
++  const showAnchor = (x: number, y: number, point: RpTrendPoint) => {
++    if (!geometry) return
++    const xPercent = (x / geometry.width) * 100
++    const yPercent = (y / geometry.height) * 100
++    const placeBelow = yPercent < 38
++    const next: TooltipAnchor = { point, xPercent, yPercent, placeBelow }
++    setAnchor((prev) =>
++      prev?.point.matchId === next.point.matchId &&
++      prev.xPercent === next.xPercent &&
++      prev.placeBelow === next.placeBelow
++        ? prev
++        : next,
++    )
++  }
++
++  const chartBody = !hasChart ? (
++    <EmptyState title="RP 흐름 데이터 없음" description="최근 경기 RP 기록이 없습니다." />
++  ) : (
++    <div className={cn('space-y-2', compact && 'space-y-1')}>
++      {!compact ? (
++        <div className="flex items-baseline justify-between gap-2">
++          <p className="text-muted-foreground text-xs">최근 RP</p>
++          <p className="text-foreground text-2xl font-bold tabular-nums tracking-tight">{latestRp}</p>
++        </div>
+       ) : (
+-        <div className="space-y-4">
+-          <div className="flex flex-wrap items-end justify-between gap-3">
+-            <div>
+-              <p className="text-muted-foreground text-xs tracking-widest uppercase">최근 RP</p>
+-              <p className="text-foreground text-3xl font-extrabold tracking-tight">{latestRp}</p>
+-            </div>
+-            <div className="text-muted-foreground text-sm">
+-              <span>
+-                시작 {startRp} → 최근 {latestRp}
+-              </span>
+-              <span className="mx-2 opacity-40">·</span>
+-              <span>
+-                범위 {geometry!.minRp}–{geometry!.maxRp}
+-              </span>
+-            </div>
+-          </div>
+-          <div className="relative overflow-x-auto px-1">
+-            {activePoint ? (
+-              <div
+-                className="border-border/80 bg-popover/95 pointer-events-none absolute z-10 rounded-md border px-2.5 py-1.5 text-xs shadow-md backdrop-blur-sm"
+-                style={{
+-                  left: `${(activePoint.x / CHART_WIDTH) * 100}%`,
+-                  top: `${(activePoint.y / CHART_HEIGHT) * 100 - 12}%`,
+-                  transform: 'translate(-50%, -100%)',
+-                }}
+-              >
+-                <p className="text-muted-foreground">{activePoint.point.dateLabel}</p>
+-                <p className="text-foreground font-bold">RP {activePoint.point.rpAfter}</p>
+-                {activePoint.point.rpDelta != null ? (
+-                  <p
+-                    className={cn(
+-                      'font-medium',
+-                      activePoint.point.rpDelta >= 0 ? 'text-green-400' : 'text-red-400',
+-                    )}
+-                  >
+-                    {activePoint.point.rpDelta >= 0 ? '+' : ''}
+-                    {activePoint.point.rpDelta}
+-                  </p>
+-                ) : null}
+-              </div>
+-            ) : null}
+-            <svg
+-              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+-              className="text-primary h-auto w-full min-w-[300px] max-w-full"
+-              role="img"
+-              aria-label="데모 RP 흐름 차트"
+-              onMouseLeave={() => setActiveIndex(null)}
+-            >
+-              <defs>
+-                <linearGradient id="rp-area-gradient" x1="0" y1="0" x2="0" y2="1">
+-                  <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.35" />
+-                  <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+-                </linearGradient>
+-              </defs>
++        <p className="text-muted-foreground text-[10px] font-medium tracking-wide">
++          최근 {points.length}일 RP
++        </p>
++      )}
++
++      <div
++        className={cn(
++          'relative min-w-0',
++          isSidebar ? 'overflow-hidden' : 'overflow-x-auto overflow-y-visible',
++        )}
++        onMouseLeave={() => setAnchor(null)}
++      >
++        {anchor ? <RpTrendTooltip anchor={anchor} /> : null}
++
++        <svg
++          viewBox={`0 0 ${geometry!.width} ${geometry!.height}`}
++          className={cn('h-auto w-full max-w-full', isSidebar ? 'min-w-0' : 'min-w-[260px]')}
++          role="img"
++          aria-label="최근 RP 추이 차트"
++        >
++          {geometry!.yTicks.map(({ value, y }) => (
++            <g key={value}>
+               <line
+-                x1={PADDING.left}
+-                y1={geometry!.baselineY}
+-                x2={CHART_WIDTH - PADDING.right}
+-                y2={geometry!.baselineY}
+-                className="stroke-border"
++                x1={geometry!.padding.left}
++                y1={y}
++                x2={geometry!.width - geometry!.padding.right}
++                y2={y}
++                stroke="currentColor"
++                className="text-border/50"
+                 strokeWidth="1"
++                strokeDasharray="2 4"
+               />
+-              <path d={geometry!.areaPath} fill="url(#rp-area-gradient)" />
+-              <path
+-                d={geometry!.linePath}
+-                fill="none"
+-                className="stroke-primary"
+-                strokeWidth="2.5"
+-                strokeLinecap="round"
+-                strokeLinejoin="round"
+-              />
+-              {geometry!.coords.map(({ x, y, point }, index) => (
+-                <g key={point.matchId}>
+-                  <circle
+-                    cx={x}
+-                    cy={y}
+-                    r={activeIndex === index ? 6 : 8}
+-                    className="fill-transparent"
+-                    onMouseEnter={() => setActiveIndex(index)}
+-                  />
+-                  <circle
+-                    cx={x}
+-                    cy={y}
+-                    r={activeIndex === index ? 5 : 4}
+-                    className={cn(
+-                      'fill-primary stroke-background transition-all',
+-                      activeIndex === index && 'fill-primary/90',
+-                    )}
+-                    strokeWidth="2"
+-                    pointerEvents="none"
+-                  />
+-                </g>
+-              ))}
+-              {geometry!.coords
+-                .filter((_, i) => i === 0 || i === geometry!.coords.length - 1 || i % 3 === 0)
+-                .map(({ x, point }) => (
+-                  <text
+-                    key={`${point.matchId}-label`}
+-                    x={x}
+-                    y={CHART_HEIGHT - 8}
+-                    textAnchor="middle"
+-                    className="fill-muted-foreground text-[9px]"
+-                  >
+-                    {point.dateLabel}
+-                  </text>
+-                ))}
+-            </svg>
+-          </div>
+-        </div>
+-      )}
++              <text
++                x={geometry!.padding.left - 6}
++                y={y + 3}
++                textAnchor="end"
++                className="fill-muted-foreground tabular-nums"
++                fontSize={layout.labelSize}
++              >
++                {value.toLocaleString('ko-KR')}
++              </text>
++            </g>
++          ))}
++
++          <line
++            x1={geometry!.padding.left}
++            y1={geometry!.padding.top}
++            x2={geometry!.padding.left}
++            y2={geometry!.baselineY}
++            stroke="currentColor"
++            className="text-border/60"
++            strokeWidth="1"
++            strokeDasharray="2 4"
++          />
++
++          <path
++            d={geometry!.linePath}
++            fill="none"
++            stroke={RP_CHART_LINE_COLOR}
++            strokeWidth={layout.strokeWidth}
++            strokeLinecap="round"
++            strokeLinejoin="round"
++          />
++
++          {geometry!.coords.map(({ x, y, point }) => {
++            const isActive = anchor?.point.matchId === point.matchId
++            const markerR = layout.markerSize
++            return (
++              <g
++                key={point.matchId}
++                className="cursor-default"
++                onMouseEnter={() => showAnchor(x, y, point)}
++              >
++                <title>
++                  {[
++                    point.dateLabel,
++                    `마무리 ${point.rpAfter.toLocaleString('ko-KR')}`,
++                    point.dayMinRp != null && point.dayMaxRp != null
++                      ? `최저 ${point.dayMinRp.toLocaleString('ko-KR')} · 최고 ${point.dayMaxRp.toLocaleString('ko-KR')}`
++                      : null,
++                    point.gamesPlayed != null && point.gamesPlayed > 1 ? `${point.gamesPlayed}판` : null,
++                  ]
++                    .filter(Boolean)
++                    .join('\n')}
++                </title>
++                <path d={diamondPath(x, y, markerR + 6)} fill="transparent" />
++                <path
++                  d={diamondPath(x, y, isActive ? layout.activeMarkerSize : markerR)}
++                  fill={RP_CHART_LINE_COLOR}
++                  stroke="#1a1f2e"
++                  strokeWidth={isActive ? 1.5 : 1}
++                  opacity={isActive ? 1 : 0.85}
++                />
++              </g>
++            )
++          })}
++
++          {geometry!.coords.map(({ x, point }) => (
++            <text
++              key={`${point.matchId}-label`}
++              x={x}
++              y={geometry!.height - 4}
++              textAnchor="middle"
++              className="fill-muted-foreground tabular-nums"
++              fontSize={layout.labelSize}
++            >
++              {point.dateLabel}
++            </text>
++          ))}
++        </svg>
++      </div>
++    </div>
++  )
++
++  if (embedded) {
++    return <div className={cn('space-y-1', className)}>{chartBody}</div>
++  }
++
++  return (
++    <SurfaceCard variant="default" padding="lg" className={cn('space-y-4', className)}>
++      <SectionHeader title={title} description={description} size="default" />
++      {chartBody}
+     </SurfaceCard>
+   )
+ }
+diff --git a/src/components/profile/SeasonHistoryGrid.tsx b/src/components/profile/SeasonHistoryGrid.tsx
+index 03305aa..f0d9121 100644
+--- a/src/components/profile/SeasonHistoryGrid.tsx
++++ b/src/components/profile/SeasonHistoryGrid.tsx
+@@ -1,8 +1,6 @@
+-import { useMemo, useState } from 'react'
+-
+ import type { DemoSeasonRecord } from '@/mocks/seasonHistory'
++import { formatTierBadgeCompact, tierAccentColor } from '@/utils/rankTier'
+ import { cn } from '@/lib/utils'
+-import { tierToken } from '@/utils/gameLabels'
+ 
+ export interface SeasonHistoryGridProps {
+   seasons: DemoSeasonRecord[]
+@@ -11,70 +9,24 @@ export interface SeasonHistoryGridProps {
+   className?: string
+ }
+ 
+-const COLLAPSE_THRESHOLD = 6
+-
+-function tierAccentColor(tier: string): string {
+-  const token = tierToken(tier)
+-  if (token.startsWith('아이언')) return '#9ca3af'
+-  if (token.startsWith('브론즈')) return '#cd7f32'
+-  if (token.startsWith('실버')) return '#aaaaaa'
+-  if (token.startsWith('골드')) return '#f0b429'
+-  if (token.startsWith('플래티넘')) return '#4fc3b0'
+-  if (token.startsWith('다이아')) return '#5b8dd9'
+-  return '#9ca3af'
+-}
+-
+-function compactTierLabel(tier: string): string {
+-  const parts = tier.trim().split(/\s+/)
+-  if (parts.length <= 1) return parts[0] ?? tier
+-  return `${parts[0]}${parts[1]}`
+-}
+-
+ export function SeasonHistoryGrid({
+   seasons,
+   selectedSeason,
+   onSelect,
+   className,
+ }: SeasonHistoryGridProps) {
+-  const needsCollapse = seasons.length > COLLAPSE_THRESHOLD
+-  const [expanded, setExpanded] = useState(!needsCollapse)
+-
+-  const visibleSeasons = useMemo(() => {
+-    if (expanded) return seasons
+-
+-    const recent = seasons.slice(-COLLAPSE_THRESHOLD)
+-    if (recent.some((s) => s.seasonNumber === selectedSeason)) {
+-      return recent
+-    }
+-
+-    const selected = seasons.find((s) => s.seasonNumber === selectedSeason)
+-    if (!selected) return recent
+-
+-    return [...recent.slice(1), selected].sort((a, b) => a.seasonNumber - b.seasonNumber)
+-  }, [expanded, seasons, selectedSeason])
+-
+   if (seasons.length === 0) return null
+ 
+   return (
+     <div className={cn('min-w-0 space-y-2', className)}>
+-      <div className="flex items-center justify-between gap-2">
+-        <p className="text-muted-foreground text-[10px] font-semibold tracking-widest uppercase">
+-          시즌
+-        </p>
+-        {needsCollapse ? (
+-          <button
+-            type="button"
+-            className="text-primary hover:text-primary/80 text-[10px] font-medium underline-offset-2 hover:underline"
+-            onClick={() => setExpanded((v) => !v)}
+-          >
+-            {expanded ? '접기' : `펼치기 (${seasons.length})`}
+-          </button>
+-        ) : null}
+-      </div>
+-      <div className="flex flex-wrap gap-1.5">
+-        {visibleSeasons.map((season) => {
++      <p className="text-muted-foreground text-[10px] font-semibold tracking-widest uppercase">
++        시즌
++      </p>
++      <div className="flex flex-wrap gap-1 sm:gap-1.5">
++        {seasons.map((season) => {
+           const isActive = season.seasonNumber === selectedSeason
+-          const accent = tierAccentColor(season.tier)
++          const accent = tierAccentColor(season.rank.tier)
++          const tierLabel = formatTierBadgeCompact(season.rank)
+ 
+           return (
+             <button
+@@ -82,8 +34,9 @@ export function SeasonHistoryGrid({
+               type="button"
+               onClick={() => onSelect(season.seasonNumber)}
+               aria-pressed={isActive}
++              aria-label={`S${season.seasonNumber} ${tierLabel}`}
+               className={cn(
+-                'flex h-11 w-[3.75rem] shrink-0 flex-col items-center justify-center rounded-md border px-1 py-1 transition-colors',
++                'flex h-9 w-14 shrink-0 flex-col items-center justify-center rounded-md border px-1 py-1 transition-colors sm:h-11 sm:w-16',
+                 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none',
+                 isActive
+                   ? 'bg-primary/15 ring-primary/30 ring-1'
+@@ -97,17 +50,17 @@ export function SeasonHistoryGrid({
+             >
+               <span
+                 className={cn(
+-                  'text-[11px] leading-none font-bold tabular-nums',
++                  'text-[10px] leading-none font-bold tabular-nums sm:text-[11px]',
+                   isActive ? 'text-foreground' : 'text-muted-foreground',
+                 )}
+               >
+                 S{season.seasonNumber}
+               </span>
+               <span
+-                className="mt-1 max-w-full truncate text-[9px] leading-none font-semibold"
++                className="mt-1 max-w-full px-0.5 text-[9px] leading-none font-semibold sm:text-[10px]"
+                 style={{ color: accent }}
+               >
+-                {compactTierLabel(season.tier)}
++                {tierLabel}
+               </span>
+             </button>
+           )
+diff --git a/src/components/profile/SeasonHistoryTabs.tsx b/src/components/profile/SeasonHistoryTabs.tsx
+deleted file mode 100644
+index 87d7108..0000000
+--- a/src/components/profile/SeasonHistoryTabs.tsx
++++ /dev/null
+@@ -1,57 +0,0 @@
+-import type { DemoSeasonRecord } from '@/mocks/seasonHistory'
+-import { CompactTierBadge } from '@/components/profile/CompactTierBadge'
+-import { cn } from '@/lib/utils'
+-
+-export interface SeasonHistoryTabsProps {
+-  seasons: DemoSeasonRecord[]
+-  selectedSeason: number
+-  onSelect: (seasonNumber: number) => void
+-  className?: string
+-}
+-
+-export function SeasonHistoryTabs({
+-  seasons,
+-  selectedSeason,
+-  onSelect,
+-  className,
+-}: SeasonHistoryTabsProps) {
+-  if (seasons.length === 0) return null
+-
+-  return (
+-    <div className={cn('min-w-0', className)}>
+-      <p className="text-muted-foreground mb-2 text-[10px] font-semibold tracking-widest uppercase">
+-        시즌
+-      </p>
+-      <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
+-        {seasons.map((season) => {
+-          const isActive = season.seasonNumber === selectedSeason
+-          return (
+-            <button
+-              key={season.seasonNumber}
+-              type="button"
+-              onClick={() => onSelect(season.seasonNumber)}
+-              className={cn(
+-                'border-border/70 flex shrink-0 flex-col items-start gap-1.5 rounded-lg border px-3 py-2 transition-colors',
+-                'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none',
+-                isActive
+-                  ? 'border-primary/60 bg-primary/10 ring-primary/20 ring-1'
+-                  : 'hover:border-border hover:bg-muted/30 bg-transparent',
+-              )}
+-              aria-pressed={isActive}
+-            >
+-              <span
+-                className={cn(
+-                  'text-sm font-bold',
+-                  isActive ? 'text-foreground' : 'text-muted-foreground',
+-                )}
+-              >
+-                S{season.seasonNumber}
+-              </span>
+-              <CompactTierBadge tier={season.tier} />
+-            </button>
+-          )
+-        })}
+-      </div>
+-    </div>
+-  )
+-}
+diff --git a/src/components/profile/SeasonSummaryBadges.tsx b/src/components/profile/SeasonSummaryBadges.tsx
+new file mode 100644
+index 0000000..10c747b
+--- /dev/null
++++ b/src/components/profile/SeasonSummaryBadges.tsx
+@@ -0,0 +1,34 @@
++import type { SeasonRank } from '@/types/rank'
++import { formatTierBadge, tierAccentColor } from '@/utils/rankTier'
++
++export interface SeasonSummaryBadgesProps {
++  seasonNumber: number
++  rank: SeasonRank
++  tierDetail: string
++}
++
++export function SeasonSummaryBadges({
++  seasonNumber,
++  rank,
++  tierDetail,
++}: SeasonSummaryBadgesProps) {
++  const accent = tierAccentColor(rank.tier)
++  const tierLabel = formatTierBadge(rank)
++
++  return (
++    <div className="space-y-1">
++      <div className="flex flex-wrap items-center gap-1.5">
++        <span className="bg-muted text-foreground inline-flex h-7 min-w-[2.5rem] items-center justify-center rounded-md px-2 text-xs font-bold tabular-nums">
++          S{seasonNumber}
++        </span>
++        <span
++          className="tier-badge-fill inline-flex h-7 items-center rounded-md px-2 text-xs font-bold"
++          style={{ ['--tier-accent' as string]: accent }}
++        >
++          {tierLabel}
++        </span>
++      </div>
++      <p className="text-muted-foreground text-xs tabular-nums">{tierDetail}</p>
++    </div>
++  )
++}
+diff --git a/src/components/profile/WinLossBar.tsx b/src/components/profile/WinLossBar.tsx
+index c61605a..6f0080e 100644
+--- a/src/components/profile/WinLossBar.tsx
++++ b/src/components/profile/WinLossBar.tsx
+@@ -14,18 +14,18 @@ export function WinLossBar({ wins, losses, winRate, className }: WinLossBarProps
+ 
+   return (
+     <div className={cn('space-y-2', className)}>
+-      <p className="text-foreground text-left text-2xl font-extrabold tabular-nums">
++      <p className="text-panel-heading text-left text-2xl font-extrabold tabular-nums">
+         {winRate.toFixed(0)}%
+       </p>
+-      <div className="flex items-center justify-between text-xs font-medium tabular-nums">
+-        <span style={{ color: '#22c55e' }}>
++      <div className="text-muted-foreground flex items-center justify-between text-xs font-medium tabular-nums">
++        <span className="text-green-600 dark:text-[#22c55e]">
+           승리 {wins}승
+         </span>
+-        <span style={{ color: '#9ca3af' }}>
++        <span>
+           패배 {losses}패
+         </span>
+       </div>
+-      <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: '#2a2a2a' }}>
++      <div className="bg-border h-1.5 overflow-hidden rounded-full dark:bg-[#2a2a2a]">
+         <div className="flex h-full">
+           <div style={{ width: `${winPct}%`, backgroundColor: '#22c55e' }} />
+           <div style={{ width: `${lossPct}%`, backgroundColor: '#6b7280' }} />
+diff --git a/src/components/profile/WinLossChart.tsx b/src/components/profile/WinLossChart.tsx
+deleted file mode 100644
+index 7d6a870..0000000
+--- a/src/components/profile/WinLossChart.tsx
++++ /dev/null
+@@ -1,69 +0,0 @@
+-interface WinLossChartProps {
+-  wins: number
+-  losses: number
+-  winRate: number
+-  totalGames: number
+-}
+-
+-export function WinLossChart({ wins, losses, winRate, totalGames }: WinLossChartProps) {
+-  const total = wins + losses
+-  const winRatio = total > 0 ? wins / total : 0
+-  const radius = 52
+-  const stroke = 10
+-  const cx = 64
+-  const cy = 64
+-  const circumference = Math.PI * radius
+-  const winLength = circumference * winRatio
+-  const lossLength = circumference - winLength
+-
+-  return (
+-    <div className="flex flex-col items-center gap-3">
+-      <div className="relative">
+-        <svg
+-          viewBox="0 0 128 72"
+-          className="h-auto w-36"
+-          role="img"
+-          aria-label={`최근 ${totalGames}게임 승률 ${winRate}%`}
+-        >
+-          <path
+-            d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
+-            fill="none"
+-            className="stroke-muted/40"
+-            strokeWidth={stroke}
+-            strokeLinecap="round"
+-          />
+-          {winLength > 0 ? (
+-            <path
+-              d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
+-              fill="none"
+-              className="stroke-green-500"
+-              strokeWidth={stroke}
+-              strokeLinecap="round"
+-              strokeDasharray={`${winLength} ${circumference}`}
+-            />
+-          ) : null}
+-          {lossLength > 0 && winLength > 0 ? (
+-            <path
+-              d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
+-              fill="none"
+-              className="stroke-red-500/70"
+-              strokeWidth={stroke}
+-              strokeLinecap="round"
+-              strokeDasharray={`${lossLength} ${circumference}`}
+-              strokeDashoffset={-winLength}
+-            />
+-          ) : null}
+-        </svg>
+-        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
+-          <span className="text-foreground text-2xl font-extrabold">{winRate}%</span>
+-          <span className="text-muted-foreground text-xs">승률</span>
+-        </div>
+-      </div>
+-      <p className="text-muted-foreground text-center text-sm">
+-        최근 <span className="text-foreground font-semibold">{totalGames}</span>게임 ·{' '}
+-        <span className="text-green-400">{wins}승</span>{' '}
+-        <span className="text-red-400/90">{losses}패</span>
+-      </p>
+-    </div>
+-  )
+-}
+diff --git a/src/components/profile/index.ts b/src/components/profile/index.ts
+index 12b5cb8..100d5a1 100644
+--- a/src/components/profile/index.ts
++++ b/src/components/profile/index.ts
+@@ -1,13 +1,14 @@
+ export { CharacterStats } from '@/components/profile/CharacterStats'
+ export { CompactTierBadge } from '@/components/profile/CompactTierBadge'
++export { ProfileAnalysisHeroCard } from '@/components/profile/ProfileAnalysisHeroCard'
+ export { ProfileAnalysisTab } from '@/components/profile/ProfileAnalysisTab'
++export { ProfileCompactSummary } from '@/components/profile/ProfileCompactSummary'
+ export { ProfileHero } from '@/components/profile/ProfileHero'
+ export { ProfileRecordsSidebar } from '@/components/profile/ProfileRecordsSidebar'
+ export { ProfileRecordsTab } from '@/components/profile/ProfileRecordsTab'
+-export { ProfileScoreGrid } from '@/components/profile/ProfileScoreGrid'
++export { ProfileRoleSummary } from '@/components/profile/ProfileRoleSummary'
+ export { ProfileTabNav, type ProfileTabId } from '@/components/profile/ProfileTabNav'
+ export { RpTrendCard } from '@/components/profile/RpTrendCard'
+ export { SeasonHistoryGrid } from '@/components/profile/SeasonHistoryGrid'
+-export { SeasonHistoryTabs } from '@/components/profile/SeasonHistoryTabs'
++export { SeasonSummaryBadges } from '@/components/profile/SeasonSummaryBadges'
+ export { WinLossBar } from '@/components/profile/WinLossBar'
+-export { WinLossChart } from '@/components/profile/WinLossChart'
+diff --git a/src/components/profile/rpChartGeometry.ts b/src/components/profile/rpChartGeometry.ts
+new file mode 100644
+index 0000000..734d250
+--- /dev/null
++++ b/src/components/profile/rpChartGeometry.ts
+@@ -0,0 +1,85 @@
++import type { RpTrendPoint } from '@/mocks/loader'
++import { computeYAxisTicks } from '@/utils/rpTrendTicks'
++
++export interface RpChartLayout {
++  width: number
++  height: number
++  padding: { top: number; right: number; bottom: number; left: number }
++  strokeWidth: number
++  labelSize: number
++  markerSize: number
++  activeMarkerSize: number
++}
++
++/** 참고 UI — 얇은 라인 + 다이아몬드 마커 */
++export const RP_CHART_LINE_COLOR = '#c4a484'
++
++export const RP_CHART_LAYOUTS = {
++  default: {
++    width: 360,
++    height: 132,
++    padding: { top: 12, right: 16, bottom: 26, left: 44 },
++    strokeWidth: 1.5,
++    labelSize: 10,
++    markerSize: 4,
++    activeMarkerSize: 5,
++  },
++  sidebar: {
++    width: 280,
++    height: 108,
++    padding: { top: 10, right: 8, bottom: 22, left: 34 },
++    strokeWidth: 1.5,
++    labelSize: 9,
++    markerSize: 3.5,
++    activeMarkerSize: 4.5,
++  },
++} satisfies Record<string, RpChartLayout>
++
++export function diamondPath(cx: number, cy: number, radius: number): string {
++  return `M ${cx.toFixed(1)} ${(cy - radius).toFixed(1)} L ${(cx + radius).toFixed(1)} ${cy.toFixed(1)} L ${cx.toFixed(1)} ${(cy + radius).toFixed(1)} L ${(cx - radius).toFixed(1)} ${cy.toFixed(1)} Z`
++}
++
++export function buildRpChartGeometry(points: RpTrendPoint[], layout: RpChartLayout) {
++  const { width, height, padding } = layout
++  const rpValues = points.map((p) => p.rpAfter)
++  const dataMin = Math.min(...rpValues)
++  const dataMax = Math.max(...rpValues)
++  const { ticks, domainMin, domainMax } = computeYAxisTicks(dataMin, dataMax)
++  const range = domainMax - domainMin || 1
++
++  const innerW = width - padding.left - padding.right
++  const innerH = height - padding.top - padding.bottom
++  const baselineY = height - padding.bottom
++
++  const valueToY = (rp: number) =>
++    padding.top + innerH - ((rp - domainMin) / range) * innerH
++
++  const coords = points.map((p, i) => {
++    const x = padding.left + (i / Math.max(points.length - 1, 1)) * innerW
++    const y = valueToY(p.rpAfter)
++    return { x, y, point: p }
++  })
++
++  const linePath = coords
++    .map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
++    .join(' ')
++
++  const yTicks = ticks.map((value) => ({
++    value,
++    y: valueToY(value),
++  }))
++
++  return {
++    coords,
++    linePath,
++    baselineY,
++    yTicks,
++    dataMin,
++    dataMax,
++    domainMin,
++    domainMax,
++    width,
++    height,
++    padding,
++  }
++}
+diff --git a/src/components/shared/AppShell.tsx b/src/components/shared/AppShell.tsx
+index e007b00..34c7dea 100644
+--- a/src/components/shared/AppShell.tsx
++++ b/src/components/shared/AppShell.tsx
+@@ -1,6 +1,8 @@
+ import { Link, NavLink, Outlet } from 'react-router-dom'
+ 
++import { HeaderPlayerSearch } from '@/components/shared/HeaderPlayerSearch'
+ import { ThemeToggle } from '@/components/shared/ThemeToggle'
++import { UI_BUILD_ID } from '@/lib/uiBuild'
+ import { cn } from '@/lib/utils'
+ 
+ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+@@ -23,10 +25,11 @@ export function AppShell() {
+             <p className="text-foreground text-sm font-semibold tracking-tight">ERCraft</p>
+             <p className="text-muted-foreground hidden text-xs sm:block">이터널리턴 플레이 리포트</p>
+           </Link>
+-          <nav className="flex shrink-0 items-center gap-1 sm:gap-1.5" aria-label="주요 메뉴">
+-            <NavLink to="/" end className={navLinkClass}>
+-              홈
+-            </NavLink>
++          <nav
++            className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:gap-2"
++            aria-label="주요 메뉴"
++          >
++            <HeaderPlayerSearch />
+             <NavLink to="/ranking" className={navLinkClass}>
+               랭킹
+             </NavLink>
+@@ -34,9 +37,14 @@ export function AppShell() {
+           </nav>
+         </div>
+       </header>
+-      <main className="shell-container flex flex-1 flex-col py-9 sm:py-12 lg:py-14">
++      <main className="shell-container flex min-w-0 flex-1 flex-col overflow-x-hidden py-9 sm:py-12 lg:py-14">
+         <Outlet />
+       </main>
++      {import.meta.env.DEV ? (
++        <p className="text-muted-foreground/50 pointer-events-none fixed bottom-1 right-2 z-50 text-[9px] tabular-nums select-none">
++          {UI_BUILD_ID}
++        </p>
++      ) : null}
+     </div>
+   )
+ }
+diff --git a/src/components/shared/HeaderPlayerSearch.tsx b/src/components/shared/HeaderPlayerSearch.tsx
+new file mode 100644
+index 0000000..402355f
+--- /dev/null
++++ b/src/components/shared/HeaderPlayerSearch.tsx
+@@ -0,0 +1,67 @@
++import { useState, type FormEvent } from 'react'
++import { useNavigate } from 'react-router-dom'
++
++import { Input } from '@/components/ui/input'
++import { fetchPlayerByNickname } from '@/api/player'
++import { cn } from '@/lib/utils'
++
++export function HeaderPlayerSearch() {
++  const navigate = useNavigate()
++  const [query, setQuery] = useState('')
++  const [error, setError] = useState<string | null>(null)
++  const [isSearching, setIsSearching] = useState(false)
++
++  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
++    event.preventDefault()
++    const trimmed = query.trim()
++    if (!trimmed) return
++
++    setError(null)
++    setIsSearching(true)
++    try {
++      const result = await fetchPlayerByNickname(trimmed)
++      if (result.data) {
++        navigate(`/player/${encodeURIComponent(result.data.nickname)}`)
++        return
++      }
++      setError('존재하지 않는 닉네임입니다.')
++    } catch {
++      setError('검색에 실패했습니다. 잠시 후 다시 시도해주세요.')
++    } finally {
++      setIsSearching(false)
++    }
++  }
++
++  return (
++    <div className="relative w-full min-w-0 sm:w-44 md:w-52">
++      <form onSubmit={handleSubmit} className="w-full" role="search" aria-label="플레이어 검색">
++        <Input
++          type="search"
++          value={query}
++          onChange={(event) => {
++            setQuery(event.target.value)
++            if (error) setError(null)
++          }}
++          placeholder="닉네임 검색"
++          autoComplete="off"
++          disabled={isSearching}
++          aria-invalid={error ? true : undefined}
++          aria-describedby={error ? 'header-search-error' : undefined}
++          className={cn(
++            'bg-background/80 h-9 text-sm',
++            error && 'border-destructive/60 focus-visible:ring-destructive/40',
++          )}
++        />
++      </form>
++      {error ? (
++        <p
++          id="header-search-error"
++          role="alert"
++          className="border-destructive/30 bg-background text-destructive absolute top-full right-0 z-50 mt-1 max-w-[min(16rem,80vw)] rounded-md border px-2 py-1 text-xs shadow-sm"
++        >
++          {error}
++        </p>
++      ) : null}
++    </div>
++  )
++}
+diff --git a/src/components/shared/index.ts b/src/components/shared/index.ts
+index 91a3024..1163567 100644
+--- a/src/components/shared/index.ts
++++ b/src/components/shared/index.ts
+@@ -1,5 +1,6 @@
+ export { MetricPill } from '@/components/shared/MetricPill'
+ export { AppShell } from '@/components/shared/AppShell'
++export { HeaderPlayerSearch } from '@/components/shared/HeaderPlayerSearch'
+ export { DemoDataNotice } from '@/components/shared/DemoDataNotice'
+ export { EmptyState } from '@/components/shared/EmptyState'
+ export { SectionHeader } from '@/components/shared/SectionHeader'
+@@ -9,3 +10,17 @@ export { Skeleton, SkeletonCard, SkeletonText } from '@/components/shared/Skelet
+ export { SourceBadge } from '@/components/shared/SourceBadge'
+ export { StatCard } from '@/components/shared/StatCard'
+ export { TierBadge } from '@/components/shared/TierBadge'
++export { CharacterAvatar } from '@/components/shared/CharacterAvatar'
++export type { CharacterAvatarProps, CharacterAvatarSize } from '@/components/shared/CharacterAvatar'
++export { GameAssetIcon } from '@/components/shared/GameAssetIcon'
++export type { GameAssetIconProps, GameAssetIconSize } from '@/components/shared/GameAssetIcon'
++export { ItemIcon } from '@/components/shared/ItemIcon'
++export type { ItemIconProps } from '@/components/shared/ItemIcon'
++export { LoadoutIcon } from '@/components/shared/LoadoutIcon'
++export type { LoadoutIconProps } from '@/components/shared/LoadoutIcon'
++export { TraitIcon } from '@/components/shared/TraitIcon'
++export type { TraitIconProps } from '@/components/shared/TraitIcon'
++export { WeaponTypeIcon } from '@/components/shared/WeaponTypeIcon'
++export type { WeaponTypeIconProps } from '@/components/shared/WeaponTypeIcon'
++export { TacticalSkillIcon } from '@/components/shared/TacticalSkillIcon'
++export type { TacticalSkillIconProps } from '@/components/shared/TacticalSkillIcon'
+diff --git a/src/lib/uiBuild.ts b/src/lib/uiBuild.ts
+new file mode 100644
+index 0000000..ca046c5
+--- /dev/null
++++ b/src/lib/uiBuild.ts
+@@ -0,0 +1,2 @@
++/** 전적 UI 버전 — 1번(카드형 전적 v2) 복구 확인용 */
++export const UI_BUILD_ID = 'records-v2-20260611'
+diff --git a/src/pages/ProfilePage.tsx b/src/pages/ProfilePage.tsx
+index 83c86e4..d70136d 100644
+--- a/src/pages/ProfilePage.tsx
++++ b/src/pages/ProfilePage.tsx
+@@ -11,8 +11,16 @@ import {
+ import {
+   DEMO_LATEST_SEASON,
+   getDemoPlayerAnalysisReportForSeason,
++  getDemoPlayerAnalysisCharacterReportsForSeason,
++  getDemoAnalysisMatchesForSeason,
++  getDemoAnalysisPopulationMatches,
++  getDemoPlayStylePopulationMatchSets,
++  getDemoPlayStyleTierPopulationMatchSets,
+   getDemoPlayerCharacterReportsForSeason,
++  getDemoPlayerCompactSummary,
++  getDemoPlayStyleAnalysisForSeason,
+   getDemoPlayerRankingPosition,
++  getDemoPlayerRoleSummary,
+   getDemoPlayerRpTrendForSeason,
+   getDemoPlayerSeasonHistory,
+   getDemoSeasonSnapshot,
+@@ -26,17 +34,20 @@ import {
+ import { useMatchDTOHistory } from '@/hooks/useMatchDTOHistory'
+ import { usePlayerStatsDTO } from '@/hooks/usePlayerStatsDTO'
+ import { usePlayerSummary } from '@/hooks/usePlayerSummary'
++import { getAnalysisBasisLabel, type AnalysisScope } from '@/utils/analysisAggregation'
+ 
+ export function ProfilePage() {
+   const { nickname: nicknameParam } = useParams()
+   const nickname = nicknameParam ? decodeURIComponent(nicknameParam) : ''
+   const [activeTab, setActiveTab] = useState<ProfileTabId>('records')
+   const [selectedSeason, setSelectedSeason] = useState(DEMO_LATEST_SEASON)
++  const [analysisScope, setAnalysisScope] = useState<AnalysisScope>('recent20')
+ 
+   const summaryQuery = usePlayerSummary(nickname)
+   const userNum = summaryQuery.data?.userNum ?? 0
+-  const statsQuery = usePlayerStatsDTO(userNum, summaryQuery.data?.tier)
+-  const matchesQuery = useMatchDTOHistory(userNum)
++  const statsQuery = usePlayerStatsDTO(nickname, summaryQuery.data?.tier)
++  // 기존과 동일하게 summary 확인 후 매치 조회
++  const matchesQuery = useMatchDTOHistory(summaryQuery.data ? nickname : '')
+ 
+   const seasonHistory = useMemo(
+     () => (userNum > 0 ? getDemoPlayerSeasonHistory(userNum) : []),
+@@ -56,19 +67,47 @@ export function ProfilePage() {
+     [summaryQuery.data, selectedSeason],
+   )
+ 
++  const showAnalysisScopeToggle = selectedSeason >= DEMO_LATEST_SEASON
++
+   const analysisReport = useMemo(
+     () =>
+       summaryQuery.data
+-        ? getDemoPlayerAnalysisReportForSeason(summaryQuery.data.nickname, selectedSeason)
++        ? getDemoPlayerAnalysisReportForSeason(
++            summaryQuery.data.nickname,
++            selectedSeason,
++            analysisScope,
++          )
+         : null,
+-    [summaryQuery.data, selectedSeason],
++    [summaryQuery.data, selectedSeason, analysisScope],
++  )
++
++  const analysisCharacterReports = useMemo(
++    () =>
++      summaryQuery.data
++        ? getDemoPlayerAnalysisCharacterReportsForSeason(
++            summaryQuery.data.nickname,
++            selectedSeason,
++            analysisScope,
++          )
++        : [],
++    [summaryQuery.data, selectedSeason, analysisScope],
+   )
+ 
++  const analysisBasisLabel = getAnalysisBasisLabel(selectedSeason, analysisScope)
++
+   const rankingPosition = useMemo(
+     () => (summaryQuery.data ? getDemoPlayerRankingPosition(summaryQuery.data.nickname) : null),
+     [summaryQuery.data],
+   )
+ 
++  const compactSummary = useMemo(
++    () =>
++      summaryQuery.data
++        ? getDemoPlayerCompactSummary(summaryQuery.data.nickname, selectedSeason)
++        : null,
++    [summaryQuery.data, selectedSeason],
++  )
++
+   const rpTrend = useMemo(
+     () =>
+       summaryQuery.data
+@@ -77,6 +116,61 @@ export function ProfilePage() {
+     [summaryQuery.data, selectedSeason],
+   )
+ 
++  const playStyleAnalysis = useMemo(
++    () =>
++      summaryQuery.data
++        ? getDemoPlayStyleAnalysisForSeason(
++            summaryQuery.data.nickname,
++            selectedSeason,
++            analysisScope,
++          )
++        : null,
++    [summaryQuery.data, selectedSeason, analysisScope],
++  )
++
++  const analysisMatches = useMemo(
++    () =>
++      summaryQuery.data
++        ? getDemoAnalysisMatchesForSeason(
++            summaryQuery.data.nickname,
++            selectedSeason,
++            analysisScope,
++          )
++        : [],
++    [summaryQuery.data, selectedSeason, analysisScope],
++  )
++
++  const populationMatchSets = useMemo(
++    () => getDemoPlayStylePopulationMatchSets(selectedSeason, analysisScope),
++    [selectedSeason, analysisScope],
++  )
++
++  const tierPopulationMatchSets = useMemo(
++    () =>
++      summaryQuery.data
++        ? getDemoPlayStyleTierPopulationMatchSets(
++            summaryQuery.data.nickname,
++            selectedSeason,
++            analysisScope,
++          )
++        : [],
++    [summaryQuery.data, selectedSeason, analysisScope],
++  )
++
++  const populationMatches = useMemo(() => getDemoAnalysisPopulationMatches(), [])
++
++  const roleSummary = useMemo(
++    () =>
++      summaryQuery.data
++        ? getDemoPlayerRoleSummary(
++            summaryQuery.data.nickname,
++            selectedSeason,
++            analysisScope,
++          )
++        : null,
++    [summaryQuery.data, selectedSeason, analysisScope],
++  )
++
+   const matchItems = useMemo(() => {
+     const all = matchesQuery.data?.pages.flatMap((page) => page.data.items) ?? []
+     return all.filter((m) => (m.seasonNumber ?? DEMO_LATEST_SEASON) === selectedSeason)
+@@ -145,15 +239,16 @@ export function ProfilePage() {
+   const rp = statsQuery.data?.data?.mmr
+ 
+   return (
+-    <div className="flex flex-col gap-6 lg:gap-8">
++    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
+       <ProfileHero
+         summary={summary}
+         rankingPosition={rankingPosition}
+         seasons={seasonHistory}
+         selectedSeason={selectedSeason}
+         selectedTier={seasonSnapshot?.tier ?? summary.tier}
++        tierDetail={seasonSnapshot?.tierDetail}
+         onSeasonChange={setSelectedSeason}
+-        rp={rp}
++        rp={seasonSnapshot?.rank.rp ?? rp}
+       />
+ 
+       <ProfileTabNav activeTab={activeTab} onTabChange={setActiveTab} />
+@@ -163,6 +258,9 @@ export function ProfilePage() {
+           seasonSnapshot ? (
+             <ProfileRecordsTab
+               seasonSnapshot={seasonSnapshot}
++              rpTrend={rpTrend}
++              compactSummary={compactSummary}
++              roleSummary={roleSummary}
+               characterReports={characterReports}
+               userNum={userNum}
+               matchItems={matchItems}
+@@ -179,13 +277,23 @@ export function ProfilePage() {
+           ) : (
+             <EmptyState title="해당 시즌 데이터가 없습니다" />
+           )
+-        ) : (
++        ) : seasonSnapshot ? (
+           <ProfileAnalysisTab
++            nickname={summary.nickname}
+             analysisReport={analysisReport}
+-            characterReports={characterReports}
+-            rpTrend={rpTrend}
+-            seasonNumber={selectedSeason}
++            analysisCharacterReports={analysisCharacterReports}
++            analysisMatches={analysisMatches}
++            populationMatchSets={populationMatchSets}
++            tierPopulationMatchSets={tierPopulationMatchSets}
++            populationMatches={populationMatches}
++            analysisBasisLabel={analysisBasisLabel}
++            analysisScope={analysisScope}
++            onAnalysisScopeChange={setAnalysisScope}
++            showAnalysisScopeToggle={showAnalysisScopeToggle}
++            playStyleAnalysis={playStyleAnalysis}
+           />
++        ) : (
++          <EmptyState title="해당 시즌 데이터가 없습니다" />
+         )}
+       </div>
+     </div>
+diff --git a/src/types/match.ts b/src/types/match.ts
+index f2cbfb7..7f53b2a 100644
+--- a/src/types/match.ts
++++ b/src/types/match.ts
+@@ -1,3 +1,43 @@
++import type { GameMode } from '@/utils/gameMode'
++import type { EquipmentItemGrade } from '@/utils/equipmentItemGrade'
++
++/** Fankit 검증 slug만 UI에 노출 — mock/API optional */
++export interface MatchEquipmentGearPreview {
++  /** 5 — 완성 무기 아이템 */
++  weapon?: string
++  /** 6 — 상의 */
++  chest?: string
++  /** 7 — 머리 */
++  head?: string
++  /** 8 — 팔/액세서리 */
++  arm?: string
++  /** 9 — 신발 */
++  leg?: string
++}
++
++/** 슬롯별 장비 등급 (전설·영웅·혈액 배경색) */
++export interface MatchEquipmentGearGrades {
++  weapon?: EquipmentItemGrade
++  chest?: EquipmentItemGrade
++  head?: EquipmentItemGrade
++  arm?: EquipmentItemGrade
++  leg?: EquipmentItemGrade
++}
++
++export interface MatchEquipmentPreview {
++  /** 1 — 무기 종류 (weapons/weapon-group/arcana 등) */
++  weaponTypeSlug?: string
++  /** 2 — 전술 스킬 (tactical-skills/blink 등) */
++  tacticalSkillSlug?: string
++  /** 3 — 메인 특성 */
++  mainTraitSlug?: string
++  /** 4 — 보조 특성 트리 그룹 아이콘 (저항·혼돈 등) */
++  subTraitSlug?: string
++  /** 5~9 — 장비 슬롯 */
++  gear?: MatchEquipmentGearPreview
++  gearGrade?: MatchEquipmentGearGrades
++}
++
+ export interface Paginated<T> {
+   items: T[]
+   page: number
+@@ -8,6 +48,7 @@ export interface Paginated<T> {
+ export interface MatchSummary {
+   matchId: string
+   userNum: number
++  characterNum?: number
+   characterName: string
+   placement: number
+   kills: number
+@@ -18,6 +59,25 @@ export interface MatchSummary {
+   seasonNumber?: number
+   rpAfter?: number
+   rpDelta?: number
++  /** 게임 플레이 시간(초). mock 미지정 시 matchId 시드로 1200~2400 생성 */
++  gameDuration?: number
++  /** 플레이어 딜량 */
++  playerDamage?: number
++  /** 동물(몬스터) 딜량 */
++  monsterDamage?: number
++  /** 획득 크레딧 */
++  credit?: number
++  /** 팀 킬 (데모 optional) */
++  teamKills?: number
++  /** 플레이어 대상 딜량 (데모 optional) */
++  damageToPlayers?: number
++  /** 시야 점수 (데모 optional) */
++  visionScore?: number
++  /** 동물 킬 (데모 optional) */
++  animalKills?: number
++  /** 랭크 · 코발트 · 유니온 · 일반 */
++  gameMode?: GameMode
++  equipmentPreview?: MatchEquipmentPreview
+ }
+ 
+ export interface MatchDetail extends MatchSummary {
+@@ -26,7 +86,21 @@ export interface MatchDetail extends MatchSummary {
+ }
+ 
+ export interface MatchSummaryDTO extends MatchSummary {
++  gameMode: GameMode
++  gameModeLabel: string
+   kdaString: string
+   placementLabel: string
+   relativeTime: string
++  gameDuration: number
++  gameDurationLabel: string
++  teamKill: number
++  playerDamage: number
++  rpDeltaValue: number
++  matchGrade: string
++  teamLuck: 'good' | 'normal' | 'bad'
++  teamLuckLabel: string
++  teamLuckIcon: string
++  routeNumber: number
++  characterLevel: number
++  equipmentPreview?: MatchEquipmentPreview
+ }
+diff --git a/src/utils/dto.ts b/src/utils/dto.ts
+index 0bde556..6cced66 100644
+--- a/src/utils/dto.ts
++++ b/src/utils/dto.ts
+@@ -1,6 +1,12 @@
+ import type { MatchSummary, MatchSummaryDTO } from '@/types/match'
+ import type { PlayerStats, PlayerStatsDTO } from '@/types/player'
+ import { localizeCharacter, localizeTier } from '@/utils/gameLabels'
++import { localizeGameMode, resolveGameMode } from '@/utils/gameMode'
++import {
++  buildMatchRecordDemoStats,
++  getTeamLuckIcon,
++  getTeamLuckLabel,
++} from '@/utils/matchDemoStats'
+ 
+ function round2(n: number): number {
+   return Math.round(n * 100) / 100
+@@ -21,6 +27,25 @@ function ordinal(n: number): string {
+   return `${n}th`
+ }
+ 
++function hashString(value: string): number {
++  let hash = 0
++  for (let i = 0; i < value.length; i++) {
++    hash = (hash << 5) - hash + value.charCodeAt(i)
++    hash |= 0
++  }
++  return Math.abs(hash)
++}
++
++export function demoGameDurationSeconds(matchId: string): number {
++  return 1200 + (hashString(matchId) % 1201)
++}
++
++export function formatGameDuration(seconds: number): string {
++  const minutes = Math.floor(seconds / 60)
++  const secs = seconds % 60
++  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
++}
++
+ function relativeTime(fromIso: string, now: Date): string {
+   const diffMs = now.getTime() - new Date(fromIso).getTime()
+   const minute = 60_000
+@@ -28,21 +53,38 @@ function relativeTime(fromIso: string, now: Date): string {
+   const day = 24 * hour
+   const week = 7 * day
+ 
+-  if (diffMs < minute) return 'just now'
+-  if (diffMs < hour) return `${Math.floor(diffMs / minute)}m ago`
+-  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`
+-  if (diffMs < week) return `${Math.floor(diffMs / day)}d ago`
+-  return `${Math.floor(diffMs / week)}w ago`
++  if (diffMs < minute) return '방금 전'
++  if (diffMs < hour) return `${Math.floor(diffMs / minute)}분 전`
++  if (diffMs < day) return `${Math.floor(diffMs / hour)}시간 전`
++  if (diffMs < week) return `${Math.floor(diffMs / day)}일 전`
++  return `${Math.floor(diffMs / week)}주 전`
+ }
+ 
+ export function toMatchSummaryDTO(match: MatchSummary, now: Date = new Date()): MatchSummaryDTO {
+   const kdaNum = round2(kdaRatio(match.kills, match.deaths, match.assists))
++  const gameDuration = match.gameDuration ?? demoGameDurationSeconds(match.matchId)
++  const demo = buildMatchRecordDemoStats(match)
++  const gameMode = resolveGameMode(match)
++
+   return {
+     ...match,
+     characterName: localizeCharacter(match.characterName),
++    gameMode,
++    gameModeLabel: localizeGameMode(gameMode),
+     kdaString: kdaNum.toFixed(2),
+     placementLabel: ordinal(match.placement),
+     relativeTime: relativeTime(match.gameStartedAt, now),
++    gameDuration,
++    gameDurationLabel: formatGameDuration(gameDuration),
++    teamKill: demo.teamKill,
++    playerDamage: demo.playerDamage,
++    rpDeltaValue: demo.rpDeltaValue,
++    matchGrade: demo.matchGrade,
++    teamLuck: demo.teamLuck,
++    teamLuckLabel: getTeamLuckLabel(demo.teamLuck),
++    teamLuckIcon: getTeamLuckIcon(demo.teamLuck),
++    routeNumber: demo.routeNumber,
++    characterLevel: demo.characterLevel,
+   }
+ }
+ 
+diff --git a/src/utils/matchDemoStats.ts b/src/utils/matchDemoStats.ts
+new file mode 100644
+index 0000000..88526ff
+--- /dev/null
++++ b/src/utils/matchDemoStats.ts
+@@ -0,0 +1,130 @@
++// MOCK — 매치 행 데모 수치 (API 연동 전)
++
++import type { MatchSummary } from '@/types/match'
++import {
++  fineGradeColor,
++  type CharacterFineGrade,
++} from '@/utils/characterGrade'
++
++export type TeamLuckRating = 'good' | 'normal' | 'bad'
++
++export interface MatchRecordDemoStats {
++  teamKill: number
++  playerDamage: number
++  monsterDamage: number
++  credit: number
++  rpDeltaValue: number
++  matchGrade: CharacterFineGrade
++  teamLuck: TeamLuckRating
++  routeNumber: number
++  characterLevel: number
++}
++
++const FINE_GRADES: CharacterFineGrade[] = [
++  'S+',
++  'S',
++  'S-',
++  'A+',
++  'A',
++  'A-',
++  'B+',
++  'B',
++  'B-',
++  'C+',
++  'C',
++  'C-',
++  'D+',
++  'D',
++  'D-',
++]
++
++const TEAM_LUCK: { id: TeamLuckRating; label: string; icon: string }[] = [
++  { id: 'good', label: '좋음', icon: '☀' },
++  { id: 'normal', label: '보통', icon: '🌤' },
++  { id: 'bad', label: '나쁨', icon: '☁' },
++]
++
++function hashString(value: string): number {
++  let hash = 0
++  for (let i = 0; i < value.length; i++) {
++    hash = (hash << 5) - hash + value.charCodeAt(i)
++    hash |= 0
++  }
++  return Math.abs(hash)
++}
++
++function pseudoRandom(seed: number): number {
++  const x = Math.sin(seed * 12.9898) * 43758.5453
++  return x - Math.floor(x)
++}
++
++function seedFor(match: MatchSummary, salt: number): number {
++  return hashString(match.matchId) + salt * 17 + match.userNum
++}
++
++export function getDemoMatchFineGrade(matchId: string): CharacterFineGrade {
++  const index = Math.floor(pseudoRandom(hashString(matchId) + 3) * FINE_GRADES.length)
++  return FINE_GRADES[index] ?? 'B'
++}
++
++export function getTeamLuckLabel(luck: TeamLuckRating): string {
++  return TEAM_LUCK.find((t) => t.id === luck)?.label ?? '보통'
++}
++
++export function getTeamLuckIcon(luck: TeamLuckRating): string {
++  return TEAM_LUCK.find((t) => t.id === luck)?.icon ?? '🌤'
++}
++
++export function matchGradeColor(grade: CharacterFineGrade): string {
++  return fineGradeColor(grade)
++}
++
++export function buildMatchRecordDemoStats(match: MatchSummary): MatchRecordDemoStats {
++  const s0 = seedFor(match, 0)
++  const s1 = seedFor(match, 1)
++  const s2 = seedFor(match, 2)
++  const s3 = seedFor(match, 3)
++  const s4 = seedFor(match, 4)
++
++  const teamKill =
++    match.kills + Math.floor(pseudoRandom(s0) * 4) + (match.assists > 0 ? 1 : 0)
++
++  const playerDamage =
++    match.playerDamage ??
++    Math.floor(5000 + pseudoRandom(s1) * 25000)
++
++  const monsterDamage =
++    match.monsterDamage ??
++    Math.floor(30000 + pseudoRandom(s2) * 150000)
++
++  const credit =
++    match.credit ??
++    Math.floor(800 + pseudoRandom(s3) * 1000)
++
++  const demoRp = Math.floor(-150 + pseudoRandom(s4) * 451)
++  const rpDeltaValue = match.rpDelta ?? demoRp
++
++  const luckIndex = Math.floor(pseudoRandom(s0 + 5) * TEAM_LUCK.length)
++  const teamLuck = TEAM_LUCK[luckIndex]?.id ?? 'normal'
++
++  return {
++    teamKill,
++    playerDamage,
++    monsterDamage,
++    credit,
++    rpDeltaValue,
++    matchGrade: getDemoMatchFineGrade(match.matchId),
++    teamLuck,
++    routeNumber: 1 + Math.floor(pseudoRandom(s1 + 7) * 8),
++    characterLevel: 10 + Math.floor(pseudoRandom(s2 + 11) * 11),
++  }
++}
++
++export function formatMatchNumber(value: number): string {
++  return value.toLocaleString('ko-KR')
++}
++
++export function formatRpDelta(value: number): string {
++  if (value > 0) return `+${value}`
++  return String(value)
++}

@@ -28,6 +28,7 @@
     "code-maps:sync": "node scripts/sync-er-code-maps.mjs",
     "samples:gen-dakgg": "node docs/gen-dakgg-sample.mjs",
     "restore:ui": "node scripts/apply-records-ui-patch.mjs",
+    "restore:ui:checkout": "bash scripts/checkout-ui-v1.sh",
     "restore:ui:github": "node scripts/force-restore-ui.mjs"
   },
   "dependencies": {

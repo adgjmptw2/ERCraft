@@ -1,82 +1,46 @@
-# 1번 UI 복구 (GitHub에 본인 작업 없어도 됨)
+# RESTORE_LOCAL_UI.md
 
-본인이 push하지 않은 **1번 UI(카드형 전적)** 는 GitHub에 원래 없습니다.  
-다른 Cursor 대화가 로컬을 **2번 UI(패배/승리 리스트, 홈 버튼)** 로 덮어쓴 상태입니다.
+# 1번 UI 복구
 
-이 저장소에 **2번 → 1번 변환 패치**를 포함해 두었습니다.  
-(GitHub에서 찾는 게 아니라, **프로젝트 폴더 안 `patches/`** 에 있습니다.)
+**패치(`git apply`)는 로컬 파일이 다르면 실패하거나 옛 UI가 그대로 남습니다.**  
+→ 아래 **강제 checkout** 을 쓰세요.
 
-## Windows (Desktop ERCraft-main)
-
-PowerShell에서 `npm`이 **디지털 서명** 오류로 막히거나, Git Bash에서 **`node: command not found`** 가 나오면 아래를 쓰세요.
-
-### 1단계 — 패치 적용 (Node.js 불필요, Git만 있으면 됨)
-
-**Git Bash (MINGW64):**
+## Git Bash (권장)
 
 ```bash
 cd "/c/Users/MINE/Desktop/Study/ERCraft-main"
-bash scripts/apply-records-ui-patch.sh
+git fetch origin cursor/cloud-agent-1781159192012-5f23r
+git checkout origin/cursor/cloud-agent-1781159192012-5f23r -- src/
 ```
 
-또는 한 줄:
+또는:
 
 ```bash
-git apply --3way patches/restore-records-ui-v2.patch
+bash scripts/checkout-ui-v1.sh
 ```
 
-**cmd:**
+## cmd (Node/PowerShell 실행 정책 상관없음)
 
 ```cmd
 cd /d "C:\Users\MINE\Desktop\Study\ERCraft-main"
-restore-ui.cmd
-```
-
-(`restore-ui.cmd`는 `git apply`만 실행. Node 없으면 패치 후 종료)
-
-### 2단계 — dev 서버 (Node.js 필요)
-
-Git Bash PATH에 `node`가 없을 수 있습니다. **cmd** 또는 **PowerShell**에서:
-
-```cmd
-cd /d "C:\Users\MINE\Desktop\Study\ERCraft-main"
+restore-ui-v1.cmd
 npm.cmd run dev
 ```
 
-Node 설치 확인:
+## 1번 UI 맞는지 확인
 
-```cmd
-where node
-where npm
-```
+| 확인 | 1번 |
+|------|-----|
+| `MatchRow.tsx` | **700줄+** (에디터에서 열어보기) |
+| 헤더 | **검색창** (홈 버튼 없음) |
+| 매치 | **카드형** (패배/승리 한 줄 리스트 아님) |
+| dev 우하단 | `records-v2-20260611` |
 
-없으면 https://nodejs.org LTS 설치 후 터미널을 다시 여세요.
+dev 서버 **재시작** + browser **Ctrl+Shift+R** 필수.
 
-### 패치 파일만 받기
+## 스크립트 파일 받기
 
 ```bash
 git fetch origin cursor/cloud-agent-1781159192012-5f23r
-git checkout origin/cursor/cloud-agent-1781159192012-5f23r -- patches scripts/apply-records-ui-patch.sh restore-ui.cmd
+git checkout origin/cursor/cloud-agent-1781159192012-5f23r -- restore-ui-v1.cmd scripts/checkout-ui-v1.sh
 ```
-
-## 1번 UI 확인
-
-| 확인 | 1번 (원하는) | 2번 (옛 UI) |
-|------|-------------|-------------|
-| 헤더 | 검색창 | **홈** 버튼 |
-| 매치 | 아이템 8칸 카드 | **패배/승리** 리스트 |
-| MatchRow.tsx | **700줄+** | ~72줄 |
-| dev 화면 우하단 | `records-v2-20260611` | 없음 |
-
-## 본인 원본 파일 복구 (가능하면)
-
-Cursor / VS Code → 파일 우클릭 → **Timeline(로컬 기록)**  
-`MatchRow.tsx`, `ProfileRecordsSidebar.tsx` 등에서 덮어쓰기 전 버전 찾기
-
-## 패치 수동 적용
-
-```powershell
-git apply --3way patches/restore-records-ui-v2.patch
-```
-
-충돌 시 `*.rej` 파일 확인 후 수동 병합.
